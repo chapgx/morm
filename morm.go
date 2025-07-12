@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	SqLiteEngine = iota + 1
-	SqlServerEngine
-	PostgressEngine
-	MySqlEngine
+	SQLITE = iota + 1
+	SQLServer
+	POSTGRESS
+	MySQL
 )
 
 var minimalorm *MORM
@@ -35,7 +35,7 @@ func New(engine int, connectionString string) (*MORM, error) {
 	var e error
 
 	switch engine {
-	case SqLiteEngine:
+	case SQLITE:
 		minimalorm.db, e = sql.Open("sqlite", connectionString)
 	}
 

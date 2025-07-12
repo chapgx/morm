@@ -25,7 +25,7 @@ type Email struct {
 
 func main() {
   // takes engine and connection string, returns a *MORM and an error
-  _, e := New(SqLiteEngine, "db.db")
+  _, e := New(SQLITE, "db.db")
   if e != nil {
     panic(e)
   }
@@ -55,6 +55,15 @@ create table if not exists emails (
   address text,
 )
 ```
+
+
+## DIRECTIVES
+
+| Directive | Usage | Description |
+| --------- | -------- | ----------- |
+| ignore | :ignore |  ignores the field   |
+| flatten | :flatten | fields in nested structure are merge into the parent table |
+
 
 
 ## ROADMAP

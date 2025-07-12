@@ -19,7 +19,7 @@ type email struct {
 }
 
 func TestCore(t *testing.T) {
-	_, e := New(SqLiteEngine, "db.db")
+	_, e := New(SQLITE, "db.db")
 	AssertT(t, e == nil, "error was not <nil> ")
 
 	t.Run("create table", func(t *testing.T) {
