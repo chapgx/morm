@@ -11,11 +11,18 @@ type user struct {
 	FirstName string `morm:"firstname text"`
 	LastName  string
 	Email     email
+	Phone     phone `morm:":flatten"`
 }
 
 type email struct {
 	ID      int `morm:"id int"`
 	Address string
+}
+
+type phone struct {
+	Id      int
+	Primary bool
+	Number  string
 }
 
 func TestCore(t *testing.T) {
@@ -26,5 +33,7 @@ func TestCore(t *testing.T) {
 		var u user
 		e := CreateTable(u, "")
 		AssertT(t, e == nil, "expected error to be <nil>")
+
+		PrintQueryHistory()
 	})
 }
