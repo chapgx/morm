@@ -34,6 +34,15 @@ func TestCore(t *testing.T) {
 		e := CreateTable(u, "")
 		AssertT(t, e == nil, "expected error to be <nil>")
 
-		PrintQueryHistory()
+		// PrintQueryHistory()
+	})
+
+	t.Run("save data", func(t *testing.T) {
+		u := user{ID: "00", FirstName: "Richard", LastName: "Chapman"}
+		p := phone{Id: 1, Primary: true, Number: "999999999"}
+		u.Phone = p
+
+		e := Insert(&u)
+		AssertT(t, e == nil, e)
 	})
 }
