@@ -141,7 +141,6 @@ func CreateTable(model any, tablename string) error {
 			case IgnoreDirective:
 				continue
 			case FlattenDirective:
-				// TODO: next (when flatting table in creation append all fields with struct name)
 				if field.Type.Kind() != reflect.Struct {
 					break
 				}
@@ -203,9 +202,8 @@ func extract_columns(model any) ([]string, error) {
 
 		// note: untagged are added as text with their field name
 		if mormtag.IsEmpty() {
-			fieldname := strings.ToLower(field.Name)
+			fieldname := fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), strings.ToLower(field.Name))
 			fieldname = seen_before(fieldname, t.Name())
-			fieldname = check_keyword(fieldname)
 			notag_column(field, fieldname, &columns)
 			continue
 		}
@@ -231,8 +229,8 @@ func extract_columns(model any) ([]string, error) {
 		}
 
 		// note: checking if the field name has been seen in an upper structure and if it has not recorded
+		mormtag.SetFieldName(fmt.Sprintf("%s_%s", t.Name(), mormtag.fieldname))
 		mormtag.SetFieldName(seen_before(mormtag.fieldname, t.Name()))
-		mormtag.SetFieldName(check_keyword(mormtag.fieldname))
 
 		// TODO: for more complex types i will need to handle them differenly
 		switch field.Type.Kind() {
@@ -480,6 +478,7 @@ func tostring(val interface{}, kind reflect.Kind) (string, error) {
 // seen_before checks if the filename being added to the query has been seen before and it alters the filename
 // by appending the table name to the field name
 func seen_before(fieldname string, tablename string) string {
+	// NOTE: may need to change to accomodate for new pre table name format in flatter tables
 	_, found := seen[fieldname]
 	if found {
 		fieldname = fmt.Sprintf("%s_%s", tablename, fieldname)
@@ -519,10 +518,8 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 				continue
 			}
 
-			fieldname := strings.ToLower(field.Name)
+			fieldname := fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), strings.ToLower(field.Name))
 			fieldname = seen_before(fieldname, t.Name())
-			fieldname = check_keyword(fieldname)
-
 			fieldvalueI := v.Field(i).Interface()
 
 			fieldval, e := tostring(fieldvalueI, field.Type.Kind())
@@ -547,10 +544,8 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 			}
 		}
 
-		mormtag.SetFieldName(check_keyword(mormtag.fieldname))
+		mormtag.SetFieldName(fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), mormtag.fieldname))
 		mormtag.SetFieldName(seen_before(mormtag.fieldname, t.Name()))
-
-		fmt.Println(mormtag.fieldname)
 
 		valueinterface := v.Field(i).Interface()
 		fieldvalue, e := tostring(valueinterface, field.Type.Kind())
