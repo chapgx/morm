@@ -134,9 +134,6 @@ func CreateTable(model any, tablename string) error {
 		}
 
 		if mormtag.IsDirective() {
-			// TODO: this is a command do something outside of the norm.
-			// examples are :ignore :flatten :new_table and so on
-
 			switch mormtag.tag {
 			case IgnoreDirective:
 				continue
@@ -209,9 +206,6 @@ func extract_columns(model any) ([]string, error) {
 		}
 
 		if mormtag.IsDirective() {
-			// TODO: this is a command do something outside of the norm.
-			// examples are :ignore :flatten :new_table and so on
-
 			switch mormtag.tag {
 			case IgnoreDirective:
 				continue
@@ -260,6 +254,17 @@ func pulltype(model any) reflect.Type {
 	}
 
 	return t
+}
+
+// pullvalue returns the reflect.Value of an any type
+func pullvalue(model any) reflect.Value {
+	v := reflect.ValueOf(model)
+
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	return v
 }
 
 // notag_column creates the sql syntax with the correct type based on the struct field type
@@ -556,4 +561,43 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 	}
 
 	return fields, values
+}
+
+// Update makes changes to specify fv values in the database
+func Update(model any, fv map[string]any) error {
+	v := pullvalue(model)
+	var e error
+
+	for key, val := range fv {
+		fvalue := v.FieldByName(key)
+
+		if fvalue.IsNil() {
+			e = fmt.Errorf("%s is <nil>", key)
+			break
+		}
+
+		if fvalue.CanSet() {
+			e = fmt.Errorf("%s is not settable", key)
+			break
+		}
+
+		switch fvalue.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			v, e := toint64(val)
+			if e != nil {
+				break
+			}
+			fvalue.SetInt(v)
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			v, e := touint64(val)
+			if e != nil {
+				break
+			}
+			fvalue.SetUint(v)
+			// TODO: next finish all other paths
+		}
+
+	}
+
+	return e
 }
