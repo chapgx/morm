@@ -133,7 +133,7 @@ type Plane struct {
   Number int `morm:"number text"`
   Weight float
   Active bool
-  NeedService `morm:"need_service int check(need_service in(0,1))"`
+  NeedService bool `morm:"need_service int check(need_service in(0,1))"`
 }
 
 // creates sql table out of Plane struct, by default the name is planes but you can overwrite with
