@@ -285,7 +285,19 @@ func notag_column(field reflect.StructField, fieldname string, columns *[]string
 
 // Insert creates a new record
 func Insert(model any) error {
-	queries := insertquery(model, true)
+	return insert(model, "")
+}
+
+// InsertByName creates a new record where the tablename is explicit not implicit
+func InsertByName(model any, tablename string) error {
+	if tablename == "" {
+		return errors.New("tablename is <nil>")
+	}
+	return insert(model, tablename)
+}
+
+func insert(model any, tblname string) error {
+	queries := insertquery(model, true, tblname)
 	Assert(len(queries) >= 1, "expected to have queries to process but found none")
 
 	if !_morm.connected {
@@ -306,7 +318,7 @@ func Insert(model any) error {
 }
 
 // insertquery composes insert query
-func insertquery(model any, independentTable bool) []string {
+func insertquery(model any, independentTable bool, tablename string) []string {
 	insertdepth++
 
 	t := pulltype(model)
@@ -365,7 +377,11 @@ func insertquery(model any, independentTable bool) []string {
 		valuesline = append(valuesline, fieldvalue)
 	}
 
-	qi := fmt.Sprintf("insert into %ss(%s)\n", t.Name(), strings.Join(insertline, ", "))
+	if tablename == "" {
+		tablename = t.Name() + "s"
+	}
+
+	qi := fmt.Sprintf("insert into %s(%s)\n", tablename, strings.Join(insertline, ", "))
 	qv := fmt.Sprintf("values (%s)", strings.Join(valuesline, ", "))
 	qi += qv
 
@@ -560,7 +576,7 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 }
 
 // Update makes changes to specify fields in the database
-func Update(model any, filters *Filter, fields []string) Result {
+func Update(model any, filters *Filter, fields ...string) Result {
 	t := pulltype(model)
 	v := pullvalue(model)
 	var e error
@@ -626,8 +642,19 @@ func Update(model any, filters *Filter, fields []string) Result {
 	return new_result(e, affected)
 }
 
-// Delete deletes records from a tablename based on filter
-func Delete(tablename string, filters *Filter) Result {
+// DeleteByName deletes records from a tablename based on filter
+func DeleteByName(tablename string, filters *Filter) Result {
+	return delete(tablename, filters)
+}
+
+// Delete deletes a record from the table representation of the model passed in
+func Delete(model any, filters *Filter) Result {
+	t := pulltype(model)
+	tablename := strings.ToLower(t.Name()) + "s"
+	return delete(tablename, filters)
+}
+
+func delete(tablename string, filters *Filter) Result {
 	if filters == nil {
 		return error_result(errors.New("filters are <nil>"))
 	}
@@ -653,6 +680,8 @@ func Delete(tablename string, filters *Filter) Result {
 	affected, e := sqlr.RowsAffected()
 	return new_result(e, affected)
 }
+
+// TODO: next drop table functionality
 
 // Exec executres arbitrary query using the underlying driver
 func Exec(query string) (sql.Result, error) {

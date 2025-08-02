@@ -2,6 +2,15 @@
 
 
 
+## Core Functionality
+
+- [x] Create table
+- [x] Insert Record
+- [x] Update record/s
+- [x] Delete record/s
+- [ ] Drop table
+
+
 ## Notes
 - I need to decide if a flatten directive is going to propagate through the structure tree or not. Or if it will be
 decide by the user

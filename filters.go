@@ -6,11 +6,23 @@ import (
 	"strings"
 )
 
-type FilterSeparator string
+type (
+	FilterSeparator  string
+	FilterComparison string
+)
 
 const (
 	AND FilterSeparator = "and"
 	OR  FilterSeparator = "or"
+)
+
+const (
+	EQUAL           FilterComparison = "="
+	NOT_EQUAL       FilterComparison = "<>"
+	GREATER         FilterComparison = ">"
+	GREATER_OR_EQ   FilterComparison = ">="
+	LESS_THAN       FilterComparison = "<"
+	LESS_THAN_OR_EQ FilterComparison = "<="
 )
 
 type Filter struct {
@@ -18,14 +30,14 @@ type Filter struct {
 	groups []*FilterGroup
 }
 
-func (f *Filter) And(key string, val any) *Filter {
-	i := FilterItem{key, val, AND}
+func (f *Filter) And(key string, c FilterComparison, val any) *Filter {
+	i := FilterItem{key, val, c, AND}
 	f.items = append(f.items, i)
 	return f
 }
 
-func (f *Filter) Or(key string, val any) *Filter {
-	i := FilterItem{key, val, OR}
+func (f *Filter) Or(key string, c FilterComparison, val any) *Filter {
+	i := FilterItem{key, val, c, OR}
 	f.items = append(f.items, i)
 	return f
 }
@@ -46,7 +58,7 @@ func (f *Filter) WhereSQL() (string, error) {
 		if e != nil {
 			return "", e
 		}
-		query := fmt.Sprintf("where %s=%s", i.key, val)
+		query := fmt.Sprintf("where %s%s%s", i.key, i.comparison, val)
 		return query, nil
 	}
 
@@ -60,9 +72,9 @@ func (f *Filter) WhereSQL() (string, error) {
 		}
 
 		if idx == 0 {
-			clause = append(clause, fmt.Sprintf("%s=%s", i.key, val))
+			clause = append(clause, fmt.Sprintf("%s%s%s", i.key, i.comparison, val))
 		} else {
-			clause = append(clause, fmt.Sprintf("%s %s=%s", i.separator, i.key, val))
+			clause = append(clause, fmt.Sprintf("%s %s%s%s", i.separator, i.key, i.comparison, val))
 		}
 	}
 
@@ -95,14 +107,14 @@ type FilterGroup struct {
 	items []FilterItem
 }
 
-func (fg *FilterGroup) And(k string, v any) *FilterGroup {
-	i := FilterItem{k, v, AND}
+func (fg *FilterGroup) And(k string, c FilterComparison, v any) *FilterGroup {
+	i := FilterItem{k, v, c, AND}
 	fg.items = append(fg.items, i)
 	return fg
 }
 
-func (fg *FilterGroup) Or(k string, v any) *FilterGroup {
-	i := FilterItem{k, v, OR}
+func (fg *FilterGroup) Or(k string, c FilterComparison, v any) *FilterGroup {
+	i := FilterItem{k, v, c, OR}
 	fg.items = append(fg.items, i)
 	return fg
 }
@@ -126,11 +138,11 @@ func (fg *FilterGroup) SQL() (string, error) {
 		}
 
 		if idx == 0 {
-			clause = append(clause, fmt.Sprintf("%s=%s", i.key, val))
+			clause = append(clause, fmt.Sprintf("%s%s%s", i.key, i.comparison, val))
 			continue
 		}
 
-		clause = append(clause, fmt.Sprintf("%s %s=%s", i.separator, i.key, val))
+		clause = append(clause, fmt.Sprintf("%s %s%s%s", i.separator, i.key, i.comparison, val))
 	}
 
 	if e != nil {
@@ -143,9 +155,10 @@ func (fg *FilterGroup) SQL() (string, error) {
 }
 
 type FilterItem struct {
-	key       string
-	val       any
-	separator FilterSeparator
+	key        string
+	val        any
+	comparison FilterComparison
+	separator  FilterSeparator
 }
 
 func NewFilter() Filter {

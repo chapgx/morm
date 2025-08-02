@@ -56,15 +56,15 @@ func TestUpdate(t *testing.T) {
 
 	filter := NewFilter()
 	filter.
-		And("id", "01").
-		Or("first_name", "Albert")
+		And("id", EQUAL, "01").
+		Or("first_name", EQUAL, "Albert")
 
 	g := filter.Group()
 	g.
-		And("lastname", "Bolanos").
-		Or("phone_primary", 1)
+		And("lastname", EQUAL, "Bolanos").
+		Or("phone_primary", GREATER, 1)
 
-	result := Update(&u, &filter, []string{"LastName"})
+	result := Update(&u, &filter, "LastName")
 	AssertT(t, result.Error == nil, result.Error)
 
 	fmt.Println("rows affected", result.RowsAffected)
@@ -77,7 +77,7 @@ func TestDelete(t *testing.T) {
 	AssertT(t, e == nil, e)
 
 	filters := NewFilter()
-	filters.And("id", "00")
+	filters.And("id", EQUAL, "00")
 
 	rslt := Delete("users", &filters)
 	AssertT(t, rslt.Error == nil, rslt.Error)
