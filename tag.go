@@ -36,6 +36,7 @@ func gettag(field reflect.StructField) MormTag {
 	mt := MormTag{tag: mormtag}
 
 	if mt.IsEmpty() {
+		mt.fieldname = strings.ToLower(field.Name)
 		return mt
 	}
 

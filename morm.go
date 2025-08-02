@@ -386,11 +386,7 @@ func insert_adjecent(model any, seenfields map[string]bool) []string {
 	}
 
 	t := pulltype(model)
-	v := reflect.ValueOf(model)
-
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
+	v := pullvalue(model)
 
 	var queries []string
 	var insertfields []string
@@ -563,41 +559,110 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 	return fields, values
 }
 
-// Update makes changes to specify fv values in the database
-func Update(model any, fv map[string]any) error {
+// Update makes changes to specify fields in the database
+func Update(model any, filters *Filter, fields []string) Result {
+	t := pulltype(model)
 	v := pullvalue(model)
 	var e error
 
-	for key, val := range fv {
-		fvalue := v.FieldByName(key)
+	query := fmt.Sprintf("update %ss\nset", strings.ToLower(t.Name()))
 
-		if fvalue.IsNil() {
-			e = fmt.Errorf("%s is <nil>", key)
+	var fieldsandvalues []string
+	for _, field := range fields {
+		fvalue := v.FieldByName(field)
+
+		f, ok := t.FieldByName(field)
+		if !ok {
+			e = fmt.Errorf("%s field not found", field)
 			break
 		}
 
-		if fvalue.CanSet() {
-			e = fmt.Errorf("%s is not settable", key)
+		mtag := gettag(f)
+
+		// TODO: needs a nil check for map, chan pointers and slices
+
+		inter := fvalue.Interface()
+		val, err := tostring(inter, f.Type.Kind())
+		if err != nil {
+			e = err
 			break
 		}
 
-		switch fvalue.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			v, e := toint64(val)
-			if e != nil {
-				break
-			}
-			fvalue.SetInt(v)
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			v, e := touint64(val)
-			if e != nil {
-				break
-			}
-			fvalue.SetUint(v)
-			// TODO: next finish all other paths
-		}
-
+		fieldsandvalues = append(fieldsandvalues, fmt.Sprintf("%s=%s", mtag.fieldname, val))
 	}
 
-	return e
+	if e != nil {
+		return new_result(e, 0)
+	}
+
+	query = fmt.Sprintf("%s %s", query, strings.Join(fieldsandvalues, ","))
+
+	if filters != nil {
+		wsql, e := filters.WhereSQL()
+		if e != nil {
+			return error_result(e)
+		}
+		query += "\n" + wsql
+	}
+
+	query += ";"
+
+	_queryHistory = append(_queryHistory, query)
+
+	if !_morm.connected {
+		e := _morm.connect()
+		// NOTE: maybe i don't crash here and try to recover
+		Assert(e == nil, e)
+	}
+
+	rslt, e := _morm.db.Exec(query)
+
+	if e != nil {
+		return new_result(e, 0)
+	}
+
+	affected, e := rslt.RowsAffected()
+
+	return new_result(e, affected)
+}
+
+// Delete deletes records from a tablename based on filter
+func Delete(tablename string, filters map[string]any) Result {
+	if filters == nil {
+		return error_result(errors.New("filters are <nil>"))
+	}
+
+	var whereclause []string
+	for k, v := range filters {
+		val, e := anytostr(v)
+		if e != nil {
+			return error_result(e)
+		}
+		whereclause = append(whereclause, fmt.Sprintf("%s=%s", k, val))
+	}
+
+	query := fmt.Sprintf("delete from %s\nwhere %s", tablename, strings.Join(whereclause, " and"))
+	_queryHistory = append(_queryHistory, query)
+
+	if !_morm.connected {
+		e := _morm.connect()
+		Assert(e == nil, e)
+	}
+
+	sqlr, e := _morm.db.Exec(query)
+	if e != nil {
+		return error_result(e)
+	}
+
+	affected, e := sqlr.RowsAffected()
+	return new_result(e, affected)
+}
+
+// Exec executres arbitrary query using the underlying driver
+func Exec(query string) (sql.Result, error) {
+	if !_morm.connected {
+		e := _morm.connect()
+		Assert(e == nil, e)
+	}
+	return _morm.db.Exec(query)
 }
