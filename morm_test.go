@@ -76,7 +76,10 @@ func TestDelete(t *testing.T) {
 	_, e := New(SQLITE, "db.db")
 	AssertT(t, e == nil, e)
 
-	rslt := Delete("users", map[string]any{"id": "00"})
+	filters := NewFilter()
+	filters.And("id", "00")
+
+	rslt := Delete("users", &filters)
 	AssertT(t, rslt.Error == nil, rslt.Error)
 	PrintQueryHistory()
 }

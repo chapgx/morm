@@ -627,21 +627,17 @@ func Update(model any, filters *Filter, fields []string) Result {
 }
 
 // Delete deletes records from a tablename based on filter
-func Delete(tablename string, filters map[string]any) Result {
+func Delete(tablename string, filters *Filter) Result {
 	if filters == nil {
 		return error_result(errors.New("filters are <nil>"))
 	}
 
-	var whereclause []string
-	for k, v := range filters {
-		val, e := anytostr(v)
-		if e != nil {
-			return error_result(e)
-		}
-		whereclause = append(whereclause, fmt.Sprintf("%s=%s", k, val))
+	wheresql, e := filters.WhereSQL()
+	if e != nil {
+		return error_result(e)
 	}
 
-	query := fmt.Sprintf("delete from %s\nwhere %s", tablename, strings.Join(whereclause, " and"))
+	query := fmt.Sprintf("delete from %s\n%s", tablename, wheresql)
 	_queryHistory = append(_queryHistory, query)
 
 	if !_morm.connected {
