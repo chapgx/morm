@@ -1,5 +1,6 @@
 
-
+## TO Do
+- [ ] Add pointer types to a structure and test
 
 
 ## Core Functionality

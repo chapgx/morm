@@ -11,6 +11,7 @@ type user struct {
 	ID        string `morm:"id text"`
 	FirstName string `morm:"first_name text"`
 	LastName  string
+	Alias     *string `morm:"alias text null"`
 	Email     email
 	Phone     phone `morm:":flatten"`
 }
@@ -39,6 +40,7 @@ func TestCore(t *testing.T) {
 	})
 
 	t.Run("save data", func(t *testing.T) {
+		// alias := "mmm"
 		u := user{ID: "00", FirstName: "Richard", LastName: "Chapman"}
 		p := phone{Id: 1, Primary: true, Number: "999999999"}
 		u.Phone = p
@@ -52,7 +54,8 @@ func TestUpdate(t *testing.T) {
 	_, e := New(SQLITE, "db.db")
 	AssertT(t, e == nil, e)
 
-	u := user{ID: "007", FirstName: "Richard", LastName: "Bolanos"}
+	alias := "The Big Boss"
+	u := user{ID: "007", FirstName: "Richard", LastName: "Bolanos", Alias: &alias}
 
 	filter := NewFilter()
 	filter.

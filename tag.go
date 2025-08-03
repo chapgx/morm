@@ -69,8 +69,7 @@ func emptytagprocess(field reflect.StructField, v reflect.Value, t reflect.Type,
 
 	fieldname = check_keyword(fieldname)
 
-	fieldvalueI := v.Field(index).Interface()
-	fieldval, e := tostring(fieldvalueI, field.Type.Kind())
+	fieldval, e := tostring(v.Field(index), field.Type)
 	Assert(e == nil, e)
 
 	return fieldname, fieldval, nil

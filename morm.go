@@ -369,8 +369,7 @@ func insertquery(model any, independentTable bool, tablename string) []string {
 		mormtag.SetFieldName(check_keyword(mormtag.fieldname))
 		mormtag.SetFieldName(seen_before(mormtag.fieldname, t.Name()))
 
-		valueinterface := v.Field(i).Interface()
-		fieldvalue, e := tostring(valueinterface, field.Type.Kind())
+		fieldvalue, e := tostring(v.Field(i), field.Type)
 		Assert(e == nil, e)
 
 		insertline = append(insertline, mormtag.fieldname)
@@ -447,7 +446,7 @@ func insert_adjecent(model any, seenfields map[string]bool) []string {
 		mormtag.SetFieldName(check_keyword(mormtag.fieldname))
 
 		insertfields = append(insertfields, mormtag.fieldname)
-		value, e := tostring(v.Field(i).Interface(), field.Type.Kind())
+		value, e := tostring(v.Field(i), field.Type)
 		Assert(e == nil, e)
 		insertvalues = append(insertvalues, value)
 	}
@@ -459,32 +458,45 @@ func insert_adjecent(model any, seenfields map[string]bool) []string {
 }
 
 // tosstring turns any sql valid type into a string to type to format query
-func tostring(val interface{}, kind reflect.Kind) (string, error) {
+func tostring(val reflect.Value, fieldType reflect.Type) (string, error) {
 	var rval string
-	switch kind {
+	inter := val.Interface()
+
+	switch fieldType.Kind() {
 	case reflect.String:
-		iv, ok := val.(string)
+		iv, ok := inter.(string)
 		if !ok {
 			return "", ErrValIsNotExpectedType
 		}
 		rval = "'" + iv + "'"
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-		iv, ok := val.(int)
+		iv, ok := inter.(int)
 		if !ok {
 			return "", ErrValIsNotExpectedType
 		}
 		rval = strconv.Itoa(iv)
 	case reflect.Bool:
-		iv, ok := val.(bool)
+		iv, ok := inter.(bool)
 		if !ok {
 			return "", ErrValIsNotExpectedType
 		}
-
 		if iv {
 			rval = "1"
 		} else {
 			rval = "0"
 		}
+	case reflect.Pointer:
+		if val.IsNil() {
+			rval = "null"
+			break
+		}
+
+		t := fieldType.Elem()
+		ptrval, e := tostring(val.Elem(), t)
+		if e != nil {
+			return "", e
+		}
+		rval = ptrval
 	default:
 		return "", errors.New("interface type has not tostring convertion available")
 	}
@@ -537,9 +549,8 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 
 			fieldname := fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), strings.ToLower(field.Name))
 			fieldname = seen_before(fieldname, t.Name())
-			fieldvalueI := v.Field(i).Interface()
 
-			fieldval, e := tostring(fieldvalueI, field.Type.Kind())
+			fieldval, e := tostring(v.Field(i), field.Type)
 			Assert(e == nil, e)
 
 			fields = append(fields, fieldname)
@@ -564,8 +575,7 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 		mormtag.SetFieldName(fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), mormtag.fieldname))
 		mormtag.SetFieldName(seen_before(mormtag.fieldname, t.Name()))
 
-		valueinterface := v.Field(i).Interface()
-		fieldvalue, e := tostring(valueinterface, field.Type.Kind())
+		fieldvalue, e := tostring(v.Field(i), field.Type)
 		Assert(e == nil, e)
 
 		fields = append(fields, mormtag.fieldname)
@@ -597,8 +607,7 @@ func Update(model any, filters *Filter, fields ...string) Result {
 
 		// TODO: needs a nil check for map, chan pointers and slices
 
-		inter := fvalue.Interface()
-		val, err := tostring(inter, f.Type.Kind())
+		val, err := tostring(fvalue, f.Type)
 		if err != nil {
 			e = err
 			break

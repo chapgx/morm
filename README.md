@@ -177,8 +177,8 @@ filter.
 
 g := filter.Group()
 g.
-  And("active", true).
-  Or("need_service", false)
+  And("active", EQUAL,  true).
+  Or("need_service", EQUAL,  false)
 
 
 result := Update(&plane, &filter, "NeedService")
