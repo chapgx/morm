@@ -23,6 +23,7 @@ const (
 	GREATER_OR_EQ   FilterComparison = ">="
 	LESS_THAN       FilterComparison = "<"
 	LESS_THAN_OR_EQ FilterComparison = "<="
+	IS              FilterComparison = "is"
 )
 
 type Filter struct {
@@ -38,6 +39,20 @@ func (f *Filter) And(key string, c FilterComparison, val any) *Filter {
 
 func (f *Filter) Or(key string, c FilterComparison, val any) *Filter {
 	i := FilterItem{key, val, c, OR}
+	f.items = append(f.items, i)
+	return f
+}
+
+func (f *Filter) AndIsNull(key string) *Filter {
+	return f.isnull(key, AND)
+}
+
+func (f *Filter) OrIsNull(key string) *Filter {
+	return f.isnull(key, OR)
+}
+
+func (f *Filter) isnull(key string, sep FilterSeparator) *Filter {
+	i := FilterItem{key, nil, IS, sep}
 	f.items = append(f.items, i)
 	return f
 }
@@ -58,7 +73,7 @@ func (f *Filter) WhereSQL() (string, error) {
 		if e != nil {
 			return "", e
 		}
-		query := fmt.Sprintf("where %s%s%s", i.key, i.comparison, val)
+		query := fmt.Sprintf("where %s %s %s", i.key, i.comparison, val)
 		return query, nil
 	}
 
@@ -72,9 +87,9 @@ func (f *Filter) WhereSQL() (string, error) {
 		}
 
 		if idx == 0 {
-			clause = append(clause, fmt.Sprintf("%s%s%s", i.key, i.comparison, val))
+			clause = append(clause, fmt.Sprintf("%s %s %s", i.key, i.comparison, val))
 		} else {
-			clause = append(clause, fmt.Sprintf("%s %s%s%s", i.separator, i.key, i.comparison, val))
+			clause = append(clause, fmt.Sprintf("%s %s %s %s", i.separator, i.key, i.comparison, val))
 		}
 	}
 
@@ -119,6 +134,20 @@ func (fg *FilterGroup) Or(k string, c FilterComparison, v any) *FilterGroup {
 	return fg
 }
 
+func (fg *FilterGroup) AndIsNull(key string) *FilterGroup {
+	return fg.isnull(key, AND)
+}
+
+func (fg *FilterGroup) OrIsNull(key string) *FilterGroup {
+	return fg.isnull(key, OR)
+}
+
+func (fg *FilterGroup) isnull(key string, sep FilterSeparator) *FilterGroup {
+	i := FilterItem{key, nil, IS, sep}
+	fg.items = append(fg.items, i)
+	return fg
+}
+
 func (fg *FilterGroup) SQL() (string, error) {
 	if fg.items == nil {
 		return "", errors.New("group items is <nil>")
@@ -138,11 +167,11 @@ func (fg *FilterGroup) SQL() (string, error) {
 		}
 
 		if idx == 0 {
-			clause = append(clause, fmt.Sprintf("%s%s%s", i.key, i.comparison, val))
+			clause = append(clause, fmt.Sprintf("%s %s %s", i.key, i.comparison, val))
 			continue
 		}
 
-		clause = append(clause, fmt.Sprintf("%s %s%s%s", i.separator, i.key, i.comparison, val))
+		clause = append(clause, fmt.Sprintf("%s %s %s %s", i.separator, i.key, i.comparison, val))
 	}
 
 	if e != nil {

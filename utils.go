@@ -70,6 +70,10 @@ func touint64(i any) (uint64, error) {
 
 // anytostr tranforms common types to string representation for sql
 func anytostr(val any) (string, error) {
+	if val == nil {
+		return "null", nil
+	}
+
 	t := pulltype(val)
 	var stringval string
 

@@ -65,7 +65,8 @@ func TestUpdate(t *testing.T) {
 	g := filter.Group()
 	g.
 		And("lastname", EQUAL, "Bolanos").
-		Or("phone_primary", GREATER, 1)
+		Or("phone_primary", GREATER, 1).
+		AndIsNull("alias")
 
 	result := Update(&u, &filter, "LastName")
 	AssertT(t, result.Error == nil, result.Error)
@@ -80,9 +81,11 @@ func TestDelete(t *testing.T) {
 	AssertT(t, e == nil, e)
 
 	filters := NewFilter()
-	filters.And("id", EQUAL, "00")
+	filters.
+		And("id", EQUAL, "00").
+		AndIsNull("alias")
 
-	rslt := Delete("users", &filters)
+	rslt := Delete(user{}, &filters)
 	AssertT(t, rslt.Error == nil, rslt.Error)
 	PrintQueryHistory()
 }
