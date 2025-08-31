@@ -718,10 +718,25 @@ func Query(query string, params ...any) (*sql.Rows, error) {
 
 	if !_morm.connected {
 		e := _morm.connect()
-		return nil, e
+		if e != nil {
+			return nil, e
+		}
 	}
 
 	return _morm.db.Query(query, params...)
+}
+
+func QueryRow(query string, params ...any) (*sql.Row, error) {
+	Assert(_morm != nil, "morm instance not initiated")
+
+	if !_morm.connected {
+		e := _morm.connect()
+		if e != nil {
+			return nil, e
+		}
+	}
+
+	return _morm.db.QueryRow(query, params...), nil
 }
 
 // Exec executres arbitrary query using the underlying driver
