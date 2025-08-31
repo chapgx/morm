@@ -690,13 +690,73 @@ func delete(tablename string, filters *Filter) Result {
 	return new_result(e, affected)
 }
 
-// TODO: next drop table functionality
+func Drop(model any) error {
+	t := pulltype(model)
+	return drop(t.Name() + "s")
+}
+
+func DropByName(tablename string) error {
+	return drop(tablename)
+}
+
+func drop(tblname string) error {
+	// TODO: next drop table functionality
+	Assert(_morm != nil, "morm instance has not been initialized")
+
+	if !_morm.connected {
+		e := _morm.connect()
+		return e
+	}
+
+	_, e := _morm.db.Exec("drop table " + tblname + ";")
+
+	return e
+}
+
+func Query(query string, params ...any) (*sql.Rows, error) {
+	Assert(_morm != nil, "morm instance not initiated")
+
+	if !_morm.connected {
+		e := _morm.connect()
+		return nil, e
+	}
+
+	return _morm.db.Query(query, params...)
+}
 
 // Exec executres arbitrary query using the underlying driver
-func Exec(query string) (sql.Result, error) {
+func Exec(query string, params ...any) (sql.Result, error) {
 	if !_morm.connected {
 		e := _morm.connect()
 		Assert(e == nil, e)
 	}
-	return _morm.db.Exec(query)
+	return _morm.db.Exec(query, params...)
+}
+
+// Close closes databse connection
+func Close() error {
+	Assert(_morm != nil, "morm instance is <nil>")
+
+	if !_morm.connected {
+		return errors.New("morm instane is not connected")
+	}
+
+	e := _morm.db.Close()
+
+	if e != nil {
+		return e
+	}
+
+	_morm.connected = false
+
+	return nil
+}
+
+func Read(model any, filters *Filter) error { return read(model, filters) }
+
+func read(model any, filters *Filter) error {
+	// TODO: next finish read funtion
+	_ = pulltype(model)
+	_ = pullvalue(model)
+	return nil
 }

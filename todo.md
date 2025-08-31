@@ -9,6 +9,7 @@
 - [x] Insert Record
 - [x] Update record/s
 - [x] Delete record/s
+- [ ] Read record/s
 - [ ] Drop table
 
 
