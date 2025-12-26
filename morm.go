@@ -370,7 +370,7 @@ func insertquery(model any, independentTable bool, tablename string) []string {
 		mormtag.SetFieldName(seen_before(mormtag.fieldname, t.Name()))
 
 		fieldvalue, e := tostring(v.Field(i), field.Type)
-		Assert(e == nil, err_wrap(e, fmt.Sprintf("field %s expected type %s", field.Name, field.Type)))
+		Assert(e == nil, e)
 
 		insertline = append(insertline, mormtag.fieldname)
 		valuesline = append(valuesline, fieldvalue)
