@@ -2,6 +2,11 @@
 ## TO Do
 - [ ] Add pointer types to a structure and test
 
+## BUGS
+- [ ] SQLITE
+  - [ ] Implement support for Time type
+  - [ ] Primary keys of type integer with autoincrement must be ignore
+
 
 ## Core Functionality
 
