@@ -3,6 +3,7 @@ package morm
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	. "github.com/chapgx/assert"
 )
@@ -13,7 +14,8 @@ type user struct {
 	LastName  string
 	Alias     *string `morm:"alias text null"`
 	Email     email
-	Phone     phone `morm:":flatten"`
+	Phone     phone     `morm:":flatten"`
+	Now       time.Time `morm:"ts datetime"`
 }
 
 type email struct {
@@ -41,7 +43,7 @@ func TestCore(t *testing.T) {
 
 	t.Run("save data", func(t *testing.T) {
 		// alias := "mmm"
-		u := user{ID: "00", FirstName: "Richard", LastName: "Chapman"}
+		u := user{ID: "00", FirstName: "Richard", LastName: "Chapman", Now: time.Now()}
 		p := phone{Id: 1, Primary: true, Number: "999999999"}
 		u.Phone = p
 

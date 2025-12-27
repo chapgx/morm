@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	. "github.com/chapgx/assert"
 	_ "github.com/go-sql-driver/mysql"
@@ -126,7 +127,7 @@ func CreateTable(model any, tablename string) error {
 
 			fieldname := strings.ToLower(field.Name)
 			seen[fieldname] = true
-			fieldname = check_keyword(fieldname)
+			fieldname = safe_keyword(fieldname)
 
 			notag_column(field, fieldname, &columns)
 
@@ -152,7 +153,7 @@ func CreateTable(model any, tablename string) error {
 		}
 
 		seen[mormtag.fieldname] = true
-		mormtag.SetFieldName(check_keyword(mormtag.fieldname))
+		mormtag.SetFieldName(safe_keyword(mormtag.fieldname))
 
 		// TODO: for more complex types i will need to handle them differenly
 		switch field.Type.Kind() {
@@ -317,14 +318,14 @@ func insert(model any, tblname string) error {
 	return e
 }
 
-// insertquery composes insert query
+// insertquery composes an insert query
 func insertquery(model any, independentTable bool, tablename string) []string {
 	insertdepth++
 
 	t := pulltype(model)
 	v := reflect.ValueOf(model)
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -366,10 +367,10 @@ func insertquery(model any, independentTable bool, tablename string) []string {
 			}
 		}
 
-		mormtag.SetFieldName(check_keyword(mormtag.fieldname))
+		mormtag.SetFieldName(safe_keyword(mormtag.fieldname))
 		mormtag.SetFieldName(seen_before(mormtag.fieldname, t.Name()))
 
-		fieldvalue, e := tostring(v.Field(i), field.Type)
+		fieldvalue, e := tostring(v.Field(i), field.Type, mormtag)
 		Assert(e == nil, e)
 
 		insertline = append(insertline, mormtag.fieldname)
@@ -443,10 +444,10 @@ func insert_adjecent(model any, seenfields map[string]bool) []string {
 		}
 		seenfields[mormtag.fieldname] = true
 
-		mormtag.SetFieldName(check_keyword(mormtag.fieldname))
+		mormtag.SetFieldName(safe_keyword(mormtag.fieldname))
 
 		insertfields = append(insertfields, mormtag.fieldname)
-		value, e := tostring(v.Field(i), field.Type)
+		value, e := tostring(v.Field(i), field.Type, mormtag)
 		Assert(e == nil, e)
 		insertvalues = append(insertvalues, value)
 	}
@@ -458,7 +459,7 @@ func insert_adjecent(model any, seenfields map[string]bool) []string {
 }
 
 // tosstring turns any sql valid type into a string to type to format query
-func tostring(val reflect.Value, fieldType reflect.Type) (string, error) {
+func tostring(val reflect.Value, fieldType reflect.Type, tag MormTag) (string, error) {
 	var rval string
 	inter := val.Interface()
 
@@ -466,6 +467,7 @@ func tostring(val reflect.Value, fieldType reflect.Type) (string, error) {
 	case reflect.String:
 		iv, ok := inter.(string)
 		if !ok {
+			fmt.Printf("%+v\n", val)
 			return "", ErrValIsNotExpectedType
 		}
 		rval = "'" + iv + "'"
@@ -492,11 +494,37 @@ func tostring(val reflect.Value, fieldType reflect.Type) (string, error) {
 		}
 
 		t := fieldType.Elem()
-		ptrval, e := tostring(val.Elem(), t)
+		ptrval, e := tostring(val.Elem(), t, tag)
 		if e != nil {
 			return "", e
 		}
 		rval = ptrval
+	case reflect.Struct:
+		if val.Type() == reflect.TypeOf(time.Time{}) {
+			t, ok := inter.(time.Time)
+			if !ok {
+				return "", fmt.Errorf("exppected interface to be of type time when converting to string")
+			}
+
+			switch strings.ToLower(tag.fieldtype) {
+			case "integer":
+				n := t.UnixMilli()
+				rval = strconv.Itoa(int(n))
+			case "real":
+				t = t.UTC()
+				const unixEpochJD = 2440587.7
+				n := unixEpochJD + float64(t.UnixNano())/86400e9
+				rval = strconv.FormatFloat(n, 'f', -1, 64)
+			case "text", "date", "datetime":
+				rval = fmt.Sprintf("'%s'", t.Format(time.DateTime))
+			case "timestamp":
+				rval = t.Format(time.TimeOnly)
+			}
+
+			return rval, nil
+		}
+
+		return "", fmt.Errorf("attempted to convert to string an unsuported type %s", fieldType.Kind().String())
 	default:
 		return "", errors.New("interface type has not tostring convertion available")
 	}
@@ -504,7 +532,7 @@ func tostring(val reflect.Value, fieldType reflect.Type) (string, error) {
 	return rval, nil
 }
 
-// seen_before checks if the filename being added to the query has been seen before and it alters the filename
+// seen_before checks if the fieldname being added to the query has been seen before and it alters the fieldname
 // by appending the table name to the field name
 func seen_before(fieldname string, tablename string) string {
 	// NOTE: may need to change to accomodate for new pre table name format in flatter tables
@@ -550,7 +578,7 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 			fieldname := fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), strings.ToLower(field.Name))
 			fieldname = seen_before(fieldname, t.Name())
 
-			fieldval, e := tostring(v.Field(i), field.Type)
+			fieldval, e := tostring(v.Field(i), field.Type, mormtag)
 			Assert(e == nil, e)
 
 			fields = append(fields, fieldname)
@@ -575,7 +603,7 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 		mormtag.SetFieldName(fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), mormtag.fieldname))
 		mormtag.SetFieldName(seen_before(mormtag.fieldname, t.Name()))
 
-		fieldvalue, e := tostring(v.Field(i), field.Type)
+		fieldvalue, e := tostring(v.Field(i), field.Type, mormtag)
 		Assert(e == nil, e)
 
 		fields = append(fields, mormtag.fieldname)
@@ -607,7 +635,7 @@ func Update(model any, filters *Filter, fields ...string) Result {
 
 		// TODO: needs a nil check for map, chan pointers and slices
 
-		val, err := tostring(fvalue, f.Type)
+		val, err := tostring(fvalue, f.Type, mtag)
 		if err != nil {
 			e = err
 			break
@@ -700,7 +728,7 @@ func DropByName(tablename string) error {
 }
 
 func drop(tblname string) error {
-	// TODO: next drop table functionality
+	//TODO: next drop table functionality
 	Assert(_morm != nil, "morm instance has not been initialized")
 
 	if !_morm.connected {

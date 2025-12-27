@@ -4,8 +4,8 @@
 
 ## BUGS
 - [ ] SQLITE
-  - [ ] Implement support for Time type
-  - [ ] Primary keys of type integer with autoincrement must be ignore
+  - [x] Implement support for Time type
+  - [ ] Primary keys of type integer with auto increment must be ignore
 
 
 ## Core Functionality

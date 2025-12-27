@@ -11,6 +11,7 @@ import (
 // MormTag is a representation of the morm notation tag
 type MormTag struct {
 	tag       string
+	fieldtype string
 	split     []string
 	fieldname string
 }
@@ -43,12 +44,15 @@ func gettag(field reflect.StructField) MormTag {
 	if !mt.IsDirective() {
 		mt.split = strings.Split(mt.tag, " ")
 		mt.fieldname = mt.split[0]
+		mt.fieldtype = mt.split[1]
 	}
 
 	return mt
 }
 
-func emptytagprocess(field reflect.StructField, v reflect.Value, t reflect.Type, index int, seenfields map[string]bool) (fieldname, fieldval string, query []string) {
+func emptytagprocess(field reflect.StructField, v reflect.Value, t reflect.Type, index int, seenfields map[string]bool) (name, value string, query []string) {
+
+	// struct control structure
 	if field.Type.Kind() == reflect.Struct {
 		iface := v.Field(index).Interface()
 		query = insert_adjecent(iface, nil)
@@ -59,18 +63,19 @@ func emptytagprocess(field reflect.StructField, v reflect.Value, t reflect.Type,
 		seenfields = make(map[string]bool)
 	}
 
-	fieldname = strings.ToLower(field.Name)
+	name = strings.ToLower(field.Name)
 
-	_, exists := seenfields[fieldname]
+	_, exists := seenfields[name]
 	if exists {
-		fieldname = fmt.Sprintf("%s_%s", t.Name(), fieldname)
+		name = fmt.Sprintf("%s_%s", t.Name(), name)
 	}
-	seenfields[fieldname] = true
+	seenfields[name] = true
 
-	fieldname = check_keyword(fieldname)
+	name = safe_keyword(name)
 
-	fieldval, e := tostring(v.Field(index), field.Type)
+	fieldvalue := v.Field(index)
+	value, e := tostring(fieldvalue, field.Type, MormTag{})
 	Assert(e == nil, e)
 
-	return fieldname, fieldval, nil
+	return name, value, nil
 }
