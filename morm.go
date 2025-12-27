@@ -367,6 +367,11 @@ func insertquery(model any, independentTable bool, tablename string) []string {
 			}
 		}
 
+		//HACK: this is a hack for now I will need a better solution in the future
+		if strings.Contains(mormtag.tag, "autoincrement") {
+			continue
+		}
+
 		mormtag.SetFieldName(safe_keyword(mormtag.fieldname))
 		mormtag.SetFieldName(seen_before(mormtag.fieldname, t.Name()))
 
@@ -436,6 +441,11 @@ func insert_adjecent(model any, seenfields map[string]bool) []string {
 				}
 				continue
 			}
+		}
+
+		//HACK: this is a hack for now I will need a better solution in the future
+		if strings.Contains(mormtag.tag, "autoincrement") {
+			continue
 		}
 
 		_, exists := seenfields[mormtag.fieldname]
