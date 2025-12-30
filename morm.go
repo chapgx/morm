@@ -487,6 +487,18 @@ func tostring(val reflect.Value, fieldType reflect.Type, tag MormTag) (string, e
 			return "", ErrValIsNotExpectedType
 		}
 		rval = strconv.Itoa(iv)
+	case reflect.Float32:
+		iv, ok := inter.(float32)
+		if !ok {
+			return "", ErrValIsNotExpectedType
+		}
+		rval = strconv.FormatFloat(float64(iv), 'f', -1, 32)
+	case reflect.Float64:
+		iv, ok := inter.(float64)
+		if !ok {
+			return "", ErrValIsNotExpectedType
+		}
+		rval = strconv.FormatFloat(iv, 'f', -1, 32)
 	case reflect.Bool:
 		iv, ok := inter.(bool)
 		if !ok {
