@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/chapgx/assert"
+	. "github.com/chapgx/assert/v2"
 	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
 )
@@ -33,14 +33,15 @@ func PrintQueryHistory() {
 var (
 	_morm *MORM
 	seen  = make(map[string]bool)
+
 	// keeps track of nested tables creation execution
 	createdepth = 0
 	insertdepth = 0
 )
 
 var (
-	ErrMormIsNil = errors.New("err morm is nil")
-	ErrDBIsNil   = errors.New("err db interface is nil")
+	ErrDefaultClientIsNil = errors.New("err defautl client is nil")
+	ErrDBIsNil            = errors.New("err db interface is nil")
 )
 
 type FnConnect func() error
@@ -52,22 +53,46 @@ type MORM struct {
 	connect   FnConnect
 }
 
-func New(engine int, connectionString string) (*MORM, error) {
-	_morm = &MORM{engine: engine}
+// SetDefaultClient sets the package level [MORM]
+func SetDefaultClient(m MORM) {
+	_morm = &m
+}
+
+// GetDefault returns the package level [MORM] or an error
+func GetDefault() (*MORM, error) {
+	if _morm == nil {
+		return nil, ErrDefaultClientIsNil
+	}
+	return _morm, nil
+}
+
+// GetDefaultMust returns default [MORM] panics on error
+func GetDefaultMust() *MORM {
+	return Must(GetDefault())
+}
+
+// New creates and return a new [MORM] based on the engine and connectionString
+func New(engine int, connectionString string) (MORM, error) {
+	m := MORM{engine: engine}
 	var e error
 
 	switch engine {
 	case SQLITE:
-		_morm.connect = func() error {
+		m.connect = func() error {
 			var e error
 			_morm.db, e = sql.Open("sqlite", connectionString)
 			if e == nil {
 				_morm.connected = true
+				_, e = _morm.db.Exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;`)
+
+				if e != nil {
+					return e
+				}
 			}
 			return e
 		}
 	case MySQL:
-		_morm.connect = func() error {
+		m.connect = func() error {
 			var e error
 			_morm.db, e = sql.Open("mysql", connectionString)
 			if e == nil {
@@ -77,12 +102,12 @@ func New(engine int, connectionString string) (*MORM, error) {
 		}
 	}
 
-	return _morm, e
+	return m, e
 }
 
 func (m MORM) Close() error {
 	if _morm == nil {
-		return ErrMormIsNil
+		return ErrDefaultClientIsNil
 	}
 
 	if _morm.db == nil {

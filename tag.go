@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	. "github.com/chapgx/assert"
+	. "github.com/chapgx/assert/v2"
 )
 
 // MormTag is a representation of the morm notation tag

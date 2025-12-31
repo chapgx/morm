@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/chapgx/assert"
+	. "github.com/chapgx/assert/v2"
 )
 
 type user struct {
@@ -30,8 +30,9 @@ type phone struct {
 }
 
 func TestCore(t *testing.T) {
-	_, e := New(SQLITE, "db.db")
+	orm, e := New(SQLITE, "db.db")
 	AssertT(t, e == nil, "error was not <nil> ")
+	SetDefaultClient(orm)
 
 	t.Run("create table", func(t *testing.T) {
 		var u user
