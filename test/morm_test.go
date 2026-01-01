@@ -31,10 +31,10 @@ type phone struct {
 }
 
 func TestCore(t *testing.T) {
-	e := morm.SetDefaultClient(morm.SQLITE, "db.db")
+	e := morm.SetDefaultClient(morm.SQLITE, "./data/db.db")
 	AssertT(t, e == nil, e)
 
-	iorm, e := morm.New(morm.SQLITE, "independent.db")
+	iorm, e := morm.New(morm.SQLITE, "./data/independent.db")
 	AssertT(t, e == nil, e)
 
 	t.Run("create table", func(t *testing.T) {
@@ -47,27 +47,32 @@ func TestCore(t *testing.T) {
 		// PrintQueryHistory()
 	})
 
-	// t.Run("save data", func(t *testing.T) {
-	// 	// alias := "mmm"
-	// 	u := user{ID: "00", FirstName: "Richard", LastName: "Chapman", Now: time.Now()}
-	// 	p := phone{Id: 1, Primary: true, Number: "999999999"}
-	// 	u.Phone = p
-	//
-	// 	e := morm.Insert(&u)
-	// 	AssertT(t, e == nil, e)
-	// })
+	t.Run("save data", func(t *testing.T) {
+		u := user{ID: "00", FirstName: "Richard", LastName: "Chapman", Now: time.Now()}
+		p := phone{Id: 1, Primary: true, Number: "999999999"}
+		u.Phone = p
+
+		e := morm.Insert(&u)
+		AssertT(t, e == nil, e)
+
+		e = iorm.Insert(&u)
+		AssertT(t, e == nil, e)
+	})
 }
 
 func TestUpdate(t *testing.T) {
-	_, e := morm.New(morm.SQLITE, "db.db")
+	e := morm.SetDefaultClient(morm.SQLITE, "./data/db.db")
+	AssertT(t, e == nil, e)
+
+	orm, e := morm.New(morm.SQLITE, "./data/independent.db")
 	AssertT(t, e == nil, e)
 
 	alias := "The Big Boss"
-	u := user{ID: "007", FirstName: "Richard", LastName: "Bolanos", Alias: &alias}
+	u := user{ID: "01", FirstName: "Richard", LastName: "Bolanos", Alias: &alias}
 
 	filter := morm.NewFilter()
 	filter.
-		And("id", morm.EQUAL, "01").
+		And("id", morm.EQUAL, "00").
 		Or("first_name", morm.EQUAL, "Albert")
 
 	g := filter.Group()
@@ -78,14 +83,19 @@ func TestUpdate(t *testing.T) {
 
 	result := morm.Update(&u, &filter, "LastName")
 	AssertT(t, result.Error == nil, result.Error)
+	fmt.Println("rows affected", result.RowsAffected)
 
+	result = orm.Update(&u, &filter, "LastName")
+	AssertT(t, result.Error == nil, result.Error)
 	fmt.Println("rows affected", result.RowsAffected)
 
 	morm.PrintQueryHistory()
 }
 
 func TestDelete(t *testing.T) {
-	_, e := morm.New(morm.SQLITE, "db.db")
+	e := morm.SetDefaultClient(morm.SQLITE, "./data/db.db")
+	AssertT(t, e == nil, e)
+	orm, e := morm.New(morm.SQLITE, "./data/independent.db")
 	AssertT(t, e == nil, e)
 
 	filters := morm.NewFilter()
@@ -95,5 +105,8 @@ func TestDelete(t *testing.T) {
 
 	rslt := morm.Delete(user{}, &filters)
 	AssertT(t, rslt.Error == nil, rslt.Error)
+	rslt = orm.Delete(user{}, &filters)
+	AssertT(t, rslt.Error == nil, rslt.Error)
+
 	morm.PrintQueryHistory()
 }
