@@ -1,7 +1,6 @@
 # Minimal Object Relational Model (MORM)
 
-<img href="./assets/favicon.svg" width="100px">
-
+<img src="./assets/favicon.svg" width="100px"/>
 
  MORM (Minimal Object Relational Model) is a lightweight object–relational model focused on simplicity and performance. It is designed to handle straightforward CRUD operations, including creating and dropping database tables based on your application’s logic. The primary goal is to improve productivity and development speed by approaching the data layer from a struct-first perspective when working with relational databases.
 
