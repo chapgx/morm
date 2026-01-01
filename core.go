@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	. "github.com/chapgx/assert/v2"
+	_ "github.com/go-sql-driver/mysql"
+	_ "modernc.org/sqlite"
 )
 
 var (
@@ -76,8 +78,61 @@ func New(engine int, connectionString string) (*MORM, error) {
 // CreateTable creates a new table if it does not exists, tablename is used if is not <nil>
 // otherwise the struct name is used as the table name.
 func CreateTable(model any, tablename string) error {
-	if _morm == nil {
-		return ErrDefaultClientIsNil
-	}
 	return _morm.CreateTable(model, tablename)
 }
+
+// Insert creates a new record
+func Insert(model any) error {
+	return insert(model, "", _morm)
+}
+
+// InsertByName creates a new record where the tablename is explicit not implicit
+func InsertByName(model any, tablename string) error {
+	if tablename == "" {
+		return errors.New("tablename is <nil>")
+	}
+	return insert(model, tablename, _morm)
+}
+
+// Update makes changes to specify fields in the database
+func Update(model any, filters *Filter, fields ...string) Result {
+	return _morm.Update(model, filters, fields...)
+}
+
+// Exec executres arbitrary query using the underlying driver
+func Exec(query string, params ...any) (sql.Result, error) {
+	return _morm.Exec(query, params...)
+}
+
+// Close closes databse connection for the default [MORM] client
+func Close() error {
+	return _morm.Close()
+}
+
+func Query(query string, params ...any) (*sql.Rows, error) {
+	return _morm.Query(query, params...)
+}
+
+func QueryRow(query string, params ...any) (*sql.Row, error) {
+	return _morm.QueryRow(query, params...)
+}
+
+func Drop(model any) error {
+	return _morm.Drop(model)
+}
+
+func DropByName(tablename string) error {
+	return DropByName(tablename)
+}
+
+// DeleteByName deletes records from a tablename based on filter
+func DeleteByName(tablename string, filters *Filter) Result {
+	return _morm.DeleteByName(tablename, filters)
+}
+
+// Delete deletes a record from the table representation of the model passed in
+func Delete(model any, filters *Filter) Result {
+	return _morm.Delete(model, filters)
+}
+
+func Read(model any, filters *Filter) error { return _morm.Read(model, filters) }

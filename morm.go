@@ -151,6 +151,143 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 	return nil
 }
 
+// Insert creates a new record
+func (m *MORM) Insert(model any) error {
+	return insert(model, "", m)
+}
+
+// InsertByName creates a new record where the tablename is explicit not implicit
+func (m *MORM) InsertByName(model any, tablename string) error {
+	if tablename == "" {
+		return errors.New("tablename is <nil>")
+	}
+	return insert(model, tablename, m)
+}
+
+// Update makes changes to specify fields in the database
+func (m *MORM) Update(model any, filters *Filter, fields ...string) Result {
+	t := pulltype(model)
+	v := pullvalue(model)
+	var e error
+
+	query := fmt.Sprintf("update %ss\nset", strings.ToLower(t.Name()))
+
+	var fieldsandvalues []string
+	for _, field := range fields {
+		fvalue := v.FieldByName(field)
+
+		f, ok := t.FieldByName(field)
+		if !ok {
+			e = fmt.Errorf("%s field not found", field)
+			break
+		}
+
+		mtag := gettag(f)
+
+		// TODO: needs a nil check for map, chan pointers and slices
+
+		val, err := tostring(fvalue, f.Type, mtag)
+		if err != nil {
+			e = err
+			break
+		}
+
+		fieldsandvalues = append(fieldsandvalues, fmt.Sprintf("%s=%s", mtag.fieldname, val))
+	}
+
+	if e != nil {
+		return new_result(e, 0)
+	}
+
+	query = fmt.Sprintf("%s %s", query, strings.Join(fieldsandvalues, ","))
+
+	if filters != nil {
+		wsql, e := filters.WhereSQL()
+		if e != nil {
+			return error_result(e)
+		}
+		query += "\n" + wsql
+	}
+
+	query += ";"
+
+	_queryHistory = append(_queryHistory, query)
+
+	if !m.connected {
+		e := m.connect()
+		// NOTE: maybe i don't crash here and try to recover
+		Assert(e == nil, e)
+	}
+
+	rslt, e := m.db.Exec(query)
+
+	if e != nil {
+		return new_result(e, 0)
+	}
+
+	affected, e := rslt.RowsAffected()
+
+	return new_result(e, affected)
+}
+
+// Exec executres arbitrary query using the underlying driver
+func (m *MORM) Exec(query string, params ...any) (sql.Result, error) {
+	if !m.connected {
+		e := m.connect()
+		Assert(e == nil, e)
+	}
+	return m.db.Exec(query, params...)
+}
+
+func (m *MORM) Query(query string, params ...any) (*sql.Rows, error) {
+	Assert(m != nil, "morm instance not initiated")
+
+	if !m.connected {
+		e := m.connect()
+		if e != nil {
+			return nil, e
+		}
+	}
+
+	return m.db.Query(query, params...)
+}
+
+func (m *MORM) QueryRow(query string, params ...any) (*sql.Row, error) {
+	Assert(m != nil, "morm instance not initiated")
+
+	if !m.connected {
+		e := m.connect()
+		if e != nil {
+			return nil, e
+		}
+	}
+
+	return m.db.QueryRow(query, params...), nil
+}
+
+func (m *MORM) Drop(model any) error {
+	t := pulltype(model)
+	return drop(t.Name()+"s", m)
+}
+
+func (m *MORM) DropByName(tablename string) error {
+	return drop(tablename, m)
+}
+
+// DeleteByName deletes records from a tablename based on filter
+func (m *MORM) DeleteByName(tablename string, filters *Filter) Result {
+	return delete(tablename, filters, m)
+}
+
+// Delete deletes a record from the table representation of the model passed in
+func (m *MORM) Delete(model any, filters *Filter) Result {
+	t := pulltype(model)
+	tablename := strings.ToLower(t.Name()) + "s"
+	return delete(tablename, filters, m)
+}
+
+func (m *MORM) Read(model any, filters *Filter) error { return read(model, filters, m) }
+
 func extract_columns(model any) ([]string, error) {
 	t := pulltype(model)
 
@@ -245,32 +382,19 @@ func notag_column(field reflect.StructField, fieldname string, columns *[]string
 	}
 }
 
-// Insert creates a new record
-func Insert(model any) error {
-	return insert(model, "")
-}
-
-// InsertByName creates a new record where the tablename is explicit not implicit
-func InsertByName(model any, tablename string) error {
-	if tablename == "" {
-		return errors.New("tablename is <nil>")
-	}
-	return insert(model, tablename)
-}
-
-func insert(model any, tblname string) error {
+func insert(model any, tblname string, m *MORM) error {
 	queries := insertquery(model, true, tblname)
 	Assert(len(queries) >= 1, "expected to have queries to process but found none")
 
-	if !_morm.connected {
-		_morm.connect()
+	if !m.connected {
+		m.connect()
 	}
 
 	var e error
 
 	for _, q := range queries {
 		_queryHistory = append(_queryHistory, queries...)
-		_, e = _morm.db.Exec(q)
+		_, e = m.db.Exec(q)
 		if e != nil {
 			break
 		}
@@ -596,85 +720,7 @@ func pull_fields_and_values(model any) (fields []string, values []string) {
 	return fields, values
 }
 
-// Update makes changes to specify fields in the database
-func Update(model any, filters *Filter, fields ...string) Result {
-	t := pulltype(model)
-	v := pullvalue(model)
-	var e error
-
-	query := fmt.Sprintf("update %ss\nset", strings.ToLower(t.Name()))
-
-	var fieldsandvalues []string
-	for _, field := range fields {
-		fvalue := v.FieldByName(field)
-
-		f, ok := t.FieldByName(field)
-		if !ok {
-			e = fmt.Errorf("%s field not found", field)
-			break
-		}
-
-		mtag := gettag(f)
-
-		// TODO: needs a nil check for map, chan pointers and slices
-
-		val, err := tostring(fvalue, f.Type, mtag)
-		if err != nil {
-			e = err
-			break
-		}
-
-		fieldsandvalues = append(fieldsandvalues, fmt.Sprintf("%s=%s", mtag.fieldname, val))
-	}
-
-	if e != nil {
-		return new_result(e, 0)
-	}
-
-	query = fmt.Sprintf("%s %s", query, strings.Join(fieldsandvalues, ","))
-
-	if filters != nil {
-		wsql, e := filters.WhereSQL()
-		if e != nil {
-			return error_result(e)
-		}
-		query += "\n" + wsql
-	}
-
-	query += ";"
-
-	_queryHistory = append(_queryHistory, query)
-
-	if !_morm.connected {
-		e := _morm.connect()
-		// NOTE: maybe i don't crash here and try to recover
-		Assert(e == nil, e)
-	}
-
-	rslt, e := _morm.db.Exec(query)
-
-	if e != nil {
-		return new_result(e, 0)
-	}
-
-	affected, e := rslt.RowsAffected()
-
-	return new_result(e, affected)
-}
-
-// DeleteByName deletes records from a tablename based on filter
-func DeleteByName(tablename string, filters *Filter) Result {
-	return delete(tablename, filters)
-}
-
-// Delete deletes a record from the table representation of the model passed in
-func Delete(model any, filters *Filter) Result {
-	t := pulltype(model)
-	tablename := strings.ToLower(t.Name()) + "s"
-	return delete(tablename, filters)
-}
-
-func delete(tablename string, filters *Filter) Result {
+func delete(tablename string, filters *Filter, m *MORM) Result {
 	if filters == nil {
 		return error_result(errors.New("filters are <nil>"))
 	}
@@ -687,12 +733,12 @@ func delete(tablename string, filters *Filter) Result {
 	query := fmt.Sprintf("delete from %s\n%s", tablename, wheresql)
 	_queryHistory = append(_queryHistory, query)
 
-	if !_morm.connected {
-		e := _morm.connect()
+	if !m.connected {
+		e := m.connect()
 		Assert(e == nil, e)
 	}
 
-	sqlr, e := _morm.db.Exec(query)
+	sqlr, e := m.db.Exec(query)
 	if e != nil {
 		return error_result(e)
 	}
@@ -701,88 +747,21 @@ func delete(tablename string, filters *Filter) Result {
 	return new_result(e, affected)
 }
 
-func Drop(model any) error {
-	t := pulltype(model)
-	return drop(t.Name() + "s")
-}
-
-func DropByName(tablename string) error {
-	return drop(tablename)
-}
-
-func drop(tblname string) error {
+func drop(tblname string, m *MORM) error {
 	//TODO: next drop table functionality
-	Assert(_morm != nil, "morm instance has not been initialized")
+	Assert(m != nil, "morm instance has not been initialized")
 
-	if !_morm.connected {
-		e := _morm.connect()
+	if !m.connected {
+		e := m.connect()
 		return e
 	}
 
-	_, e := _morm.db.Exec("drop table " + tblname + ";")
+	_, e := m.db.Exec("drop table " + tblname + ";")
 
 	return e
 }
 
-func Query(query string, params ...any) (*sql.Rows, error) {
-	Assert(_morm != nil, "morm instance not initiated")
-
-	if !_morm.connected {
-		e := _morm.connect()
-		if e != nil {
-			return nil, e
-		}
-	}
-
-	return _morm.db.Query(query, params...)
-}
-
-func QueryRow(query string, params ...any) (*sql.Row, error) {
-	Assert(_morm != nil, "morm instance not initiated")
-
-	if !_morm.connected {
-		e := _morm.connect()
-		if e != nil {
-			return nil, e
-		}
-	}
-
-	return _morm.db.QueryRow(query, params...), nil
-}
-
-// Exec executres arbitrary query using the underlying driver
-func Exec(query string, params ...any) (sql.Result, error) {
-	if !_morm.connected {
-		e := _morm.connect()
-		Assert(e == nil, e)
-	}
-	return _morm.db.Exec(query, params...)
-}
-
-// Close closes databse connection for the default [MORM] client
-func Close() error {
-	if _morm == nil {
-		return ErrDefaultClientIsNil
-	}
-
-	if !_morm.connected {
-		return errors.New("morm instane is not connected")
-	}
-
-	e := _morm.db.Close()
-
-	if e != nil {
-		return e
-	}
-
-	_morm.connected = false
-
-	return nil
-}
-
-func Read(model any, filters *Filter) error { return read(model, filters) }
-
-func read(model any, filters *Filter) error {
+func read(model any, filters *Filter, m *MORM) error {
 	// TODO: next finish read funtion
 	_ = pulltype(model)
 	_ = pullvalue(model)
