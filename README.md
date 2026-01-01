@@ -1,7 +1,15 @@
 # Minimal Object Relational Model (MORM)
 
-MORM (Minimal Object Relational Model) is a light weight object relational model. The idea is to handle simple `CRUD` operations as well as `creating` and `droppping` tables. Any query that is more complex than that I am an advocate of writing it by hand or use [SQLC](https://sqlc.dev/) an awesome productivity tool with great support
+<img href="./assets/favicon.svg" width="100px">
 
+
+ MORM (Minimal Object Relational Model) is a lightweight object–relational model focused on simplicity and performance. It is designed to handle straightforward CRUD operations, including creating and dropping database tables based on your application’s logic. The primary goal is to improve productivity and development speed by approaching the data layer from a struct-first perspective when working with relational databases.
+
+For MORM to be considered successful, it should significantly reduce the time spent designing and maintaining database schemas. In most cases, the schema should be inferred directly from your data structures, minimizing manual setup and redundant definitions.
+
+MORM is not intended to replace complex or highly optimized queries within your architecture. For those use cases, tools like SQLC, combined with well-written, traditional SQL, are a better fit.
+
+Like a Myrmidon in your arsenal, MORM strives for performance, predictability, and minimal magic—doing one thing well, and doing it efficiently. 
 
 ## Quick Start
 

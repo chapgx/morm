@@ -3,7 +3,6 @@ module github.com/chapgx/morm
 go 1.24.0
 
 require (
-	github.com/chapgx/assert v1.3.2
 	github.com/chapgx/assert/v2 v2.0.1
 	github.com/go-sql-driver/mysql v1.9.3
 	modernc.org/sqlite v1.38.0

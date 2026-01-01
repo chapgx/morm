@@ -1,7 +1,5 @@
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
-github.com/chapgx/assert v1.3.2 h1:JVTOiajz6LhmjyGaQ3AcXFOa7P+cYQy1oULyiMdmFW4=
-github.com/chapgx/assert v1.3.2/go.mod h1:aXlW3CvvxjRWZlKhs1i0+xr6hkYok9smL1yJ1BZS4e0=
 github.com/chapgx/assert/v2 v2.0.1 h1:dOMhtK3AL5md2DLXMPs/vlvxCHmjP5A3HwvHF898BBA=
 github.com/chapgx/assert/v2 v2.0.1/go.mod h1:CSEXifC+qzTQR79dti90B4gbhyvZCHV9KzYbBahnGKw=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=

@@ -30,20 +30,6 @@ func PrintQueryHistory() {
 	}
 }
 
-var (
-	_morm *MORM
-	seen  = make(map[string]bool)
-
-	// keeps track of nested tables creation execution
-	createdepth = 0
-	insertdepth = 0
-)
-
-var (
-	ErrDefaultClientIsNil = errors.New("err defautl client is nil")
-	ErrDBIsNil            = errors.New("err db interface is nil")
-)
-
 type FnConnect func() error
 
 type MORM struct {
@@ -53,77 +39,25 @@ type MORM struct {
 	connect   FnConnect
 }
 
-// SetDefaultClient sets the package level [MORM]
-func SetDefaultClient(m MORM) {
-	_morm = &m
-}
-
-// GetDefault returns the package level [MORM] or an error
-func GetDefault() (*MORM, error) {
-	if _morm == nil {
-		return nil, ErrDefaultClientIsNil
-	}
-	return _morm, nil
-}
-
-// GetDefaultMust returns default [MORM] panics on error
-func GetDefaultMust() *MORM {
-	return Must(GetDefault())
-}
-
-// New creates and return a new [MORM] based on the engine and connectionString
-func New(engine int, connectionString string) (MORM, error) {
-	m := MORM{engine: engine}
-	var e error
-
-	switch engine {
-	case SQLITE:
-		m.connect = func() error {
-			var e error
-			_morm.db, e = sql.Open("sqlite", connectionString)
-			if e == nil {
-				_morm.connected = true
-				_, e = _morm.db.Exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;`)
-
-				if e != nil {
-					return e
-				}
-			}
-			return e
-		}
-	case MySQL:
-		m.connect = func() error {
-			var e error
-			_morm.db, e = sql.Open("mysql", connectionString)
-			if e == nil {
-				_morm.connected = true
-			}
-			return e
-		}
-	}
-
-	return m, e
-}
-
-func (m MORM) Close() error {
-	if _morm == nil {
+// Close() closes the database connection and resets [MORM]
+func (m *MORM) Close() error {
+	if m == nil {
 		return ErrDefaultClientIsNil
 	}
 
-	if _morm.db == nil {
+	if m.db == nil {
 		return ErrDBIsNil
 	}
 
-	if !_morm.connected {
+	if !m.connected {
 		return errors.New("database is not connected")
 	}
 
 	return m.db.Close()
 }
 
-// CreateTable creates a new table if it does not exists, tablename is used if is not <nil>
-// otherwise the struct name is used as the table name.
-func CreateTable(model any, tablename string) error {
+// CreateTable creates a table base on the model and optional tablename
+func (m *MORM) CreateTable(model any, tablename string) error {
 	createdepth++
 
 	t := pulltype(model)
@@ -143,7 +77,7 @@ func CreateTable(model any, tablename string) error {
 		// note: untagged are added as text with their field name
 		if mormtag.IsEmpty() {
 			if field.Type.Kind() == reflect.Struct {
-				e := CreateTable(field.Type, "")
+				e := m.CreateTable(field.Type, "")
 				if e != nil {
 					panic(e)
 				}
@@ -192,17 +126,19 @@ func CreateTable(model any, tablename string) error {
 
 	}
 
+	//TODO: has to be Engine driven
 	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tablename, strings.Join(columns, ","))
 
-	if !_morm.connected {
-		e := _morm.connect()
+	if !m.connected {
+		e := m.connect()
 		if e != nil {
 			panic(e)
 		}
 	}
 
 	_queryHistory = append(_queryHistory, query)
-	_, e := _morm.db.Exec(query)
+	fmt.Println(query)
+	_, e := m.db.Exec(query)
 	if e != nil {
 		panic(e)
 	}
@@ -275,7 +211,7 @@ func pulltype(model any) reflect.Type {
 	}
 
 	t = reflect.TypeOf(model)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		return t.Elem()
 	}
 
@@ -823,9 +759,11 @@ func Exec(query string, params ...any) (sql.Result, error) {
 	return _morm.db.Exec(query, params...)
 }
 
-// Close closes databse connection
+// Close closes databse connection for the default [MORM] client
 func Close() error {
-	Assert(_morm != nil, "morm instance is <nil>")
+	if _morm == nil {
+		return ErrDefaultClientIsNil
+	}
 
 	if !_morm.connected {
 		return errors.New("morm instane is not connected")
