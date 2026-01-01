@@ -40,8 +40,9 @@ type Phone struct {
 
 
 func main() {
-  // takes engine and connection string, returns a *MORM and an error
-  _, e := morm.New(SQLITE, "db.db")
+  // takes engine and connection string, returns an error if any
+  // this sets the package level MORM usually if you have a long running process you want to set this
+	e := morm.SetDefaultClient(morm.SQLITE, "db.db")
   if e != nil {
     panic(e)
   }
@@ -111,12 +112,19 @@ At the beginning of your process of before you start calling library functions y
 ```go
 import "github.com/chapgx/morm"
 
-// engine and connection string passed in
-_, e := morm.New(SQLITE, "db.db")
-
+// engine and connection string passed in. this sets the package level MORM client
+e := morm.SetDefaultClient(morm.SQLITE, "db.db")
 
 ```
 
+You can also create a new client at any time in the process that points to the same db or a separate one.
+
+```go
+import "github.com/chapgx/morm"
+
+client, e := morm.New(morm.SQLITE, "db.db")
+
+```
 
 ## Tags
 
