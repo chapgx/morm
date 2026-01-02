@@ -19,5 +19,10 @@ func TestMSSQLCore(t *testing.T) {
 		e := orm.CreateTable(mssql_user{}, "")
 		AssertT(t, e == nil, e)
 	})
-}
 
+	t.Run("insert_data", func(t *testing.T) {
+		u := mssql_user{FirstName: "Richard"}
+		e := orm.Insert(&u)
+		AssertT(t, e == nil, e)
+	})
+}

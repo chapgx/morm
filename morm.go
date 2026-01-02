@@ -18,6 +18,12 @@ func PrintQueryHistory() {
 	}
 }
 
+type DBInfo interface {
+	Version() string
+	Edition() string
+	EngineEdition() int
+}
+
 type FnConnect func() error
 
 type MORM struct {
@@ -26,6 +32,7 @@ type MORM struct {
 	engine       ENGINE
 	connect      FnConnect
 	databasename string
+	info         DBInfo
 }
 
 // GetDatabaseName returns the databasename is any
@@ -287,6 +294,22 @@ func (m *MORM) Delete(model any, filters *Filter) Result {
 	t := pulltype(model)
 	tablename := strings.ToLower(t.Name()) + "s"
 	return delete(tablename, filters, m)
+}
+
+// Info returns server information
+func (m *MORM) Info() (DBInfo, error) {
+
+	switch m.engine {
+	case SQLServer:
+		info, e := mssql_server_info(m)
+		if e != nil {
+			return nil, e
+		}
+		return info, nil
+	default:
+		return nil, fmt.Errorf("engine %s is not supported for server info", m.engine)
+	}
+
 }
 
 // Read read data into the model

@@ -35,4 +35,3 @@ END
 	query = fmt.Sprintf(query, table, table, columns)
 	return query, nil
 }
-

@@ -511,7 +511,7 @@ func notag_column(field reflect.StructField, fieldname string, columns *[]string
 }
 
 func insert(model any, tblname string, m *MORM) error {
-	queries := insertquery(model, true, tblname)
+	queries := insertquery(model, true, tblname, m)
 	Assert(len(queries) >= 1, "expected to have queries to process but found none")
 
 	if !m.connected {
@@ -532,7 +532,7 @@ func insert(model any, tblname string, m *MORM) error {
 }
 
 // insertquery composes an insert query
-func insertquery(model any, independentTable bool, tablename string) []string {
+func insertquery(model any, independentTable bool, tablename string, m *MORM) []string {
 	insertdepth++
 
 	t := pulltype(model)
@@ -602,6 +602,13 @@ func insertquery(model any, independentTable bool, tablename string) []string {
 	qi := fmt.Sprintf("insert into %s(%s)\n", tablename, strings.Join(insertline, ", "))
 	qv := fmt.Sprintf("values (%s)", strings.Join(valuesline, ", "))
 	qi += qv
+
+	switch m.engine {
+	case SQLServer:
+		prestatement, e := mssql_insert(m)
+		Assert(e == nil, e)
+		qi = prestatement + qi
+	}
 
 	executionchain = append(executionchain, qi)
 
