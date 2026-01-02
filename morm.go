@@ -5,17 +5,8 @@ import (
 	"errors"
 	"fmt"
 	. "github.com/chapgx/assert/v2"
-	// _ "github.com/go-sql-driver/mysql"
-	// _ "modernc.org/sqlite"
 	"reflect"
 	"strings"
-)
-
-const (
-	SQLITE = iota + 1
-	SQLServer
-	POSTGRESS
-	MySQL
 )
 
 // NOTE: for dev only
@@ -30,11 +21,15 @@ func PrintQueryHistory() {
 type FnConnect func() error
 
 type MORM struct {
-	db        *sql.DB
-	connected bool
-	engine    int
-	connect   FnConnect
+	db           *sql.DB
+	connected    bool
+	engine       ENGINE
+	connect      FnConnect
+	databasename string
 }
+
+// GetDatabaseName returns the databasename is any
+func (m *MORM) GetDatabaseName() string { return m.databasename }
 
 // Close() closes the database connection and resets [MORM]
 func (m *MORM) Close() error {
@@ -124,7 +119,19 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 	}
 
 	//TODO: has to be Engine driven
-	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tablename, strings.Join(columns, ","))
+	var e error
+	var query string
+	switch m.engine {
+	case SQLITE:
+		query = sqlite_createtable(tablename, strings.Join(columns, ""))
+	case SQLServer:
+		query, e = mssql_createtable(tablename, strings.Join(columns, ""), m.databasename, m)
+		if e != nil {
+			return e
+		}
+	default:
+		return fmt.Errorf("this engine (%s) is not supported yet", m.engine)
+	}
 
 	if !m.connected {
 		e := m.connect()
@@ -134,8 +141,7 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 	}
 
 	_queryHistory = append(_queryHistory, query)
-	fmt.Println(query)
-	_, e := m.db.Exec(query)
+	_, e = m.db.Exec(query)
 	if e != nil {
 		panic(e)
 	}

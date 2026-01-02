@@ -5,7 +5,32 @@ import (
 	"errors"
 	. "github.com/chapgx/assert/v2"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/microsoft/go-mssqldb"
 	_ "modernc.org/sqlite"
+)
+
+type ENGINE int
+
+func (e ENGINE) String() string {
+	switch e {
+	case SQLITE:
+		return "SQLITE"
+	case SQLServer:
+		return "SQLServer"
+	case POSTGRESS:
+		return "POSTGRESS"
+	case MySQL:
+		return "MySQL"
+	default:
+		return "UNKNOW ENGINE"
+	}
+}
+
+const (
+	SQLITE ENGINE = iota + 1
+	SQLServer
+	POSTGRESS
+	MySQL
 )
 
 var (
@@ -23,7 +48,7 @@ var (
 )
 
 // SetDefaultClient sets the package level [MORM]
-func SetDefaultClient(engine int, connString string) error {
+func SetDefaultClient(engine ENGINE, connString string) error {
 	m, e := New(engine, connString)
 	_morm = m
 	return e
@@ -43,7 +68,15 @@ func GetDefaultMust() *MORM {
 }
 
 // New creates and return a new [MORM] based on the engine and connectionString
-func New(engine int, connectionString string) (*MORM, error) {
+func New(engine ENGINE, connectionString string) (*MORM, error) {
+	return new_client(engine, connectionString, "")
+}
+
+func NewWithName(engine ENGINE, conn string, dbname string) (*MORM, error) {
+	return new_client(engine, conn, dbname)
+}
+
+func new_client(engine ENGINE, conn string, dbname string) (*MORM, error) {
 	m := MORM{engine: engine}
 	var e error
 
@@ -51,7 +84,7 @@ func New(engine int, connectionString string) (*MORM, error) {
 	case SQLITE:
 		m.connect = func() error {
 			var e error
-			m.db, e = sql.Open("sqlite", connectionString)
+			m.db, e = sql.Open("sqlite", conn)
 			if e == nil {
 				m.connected = true
 				_, e = m.db.Exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;`)
@@ -64,8 +97,18 @@ func New(engine int, connectionString string) (*MORM, error) {
 	case MySQL:
 		m.connect = func() error {
 			var e error
-			m.db, e = sql.Open("mysql", connectionString)
+			m.db, e = sql.Open("mysql", conn)
 			if e == nil {
+				m.connected = true
+			}
+			return e
+		}
+	case SQLServer:
+		m.databasename = dbname
+		m.connect = func() error {
+			var e error
+			m.db, e = sql.Open("sqlserver", conn)
+			if e != nil {
 				m.connected = true
 			}
 			return e
