@@ -87,7 +87,7 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 			seen[fieldname] = true
 			fieldname = safe_keyword(fieldname)
 
-			notag_column(field, fieldname, &columns)
+			notag_column(field, fieldname, &columns, m)
 
 			continue
 		}
@@ -101,7 +101,7 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 					break
 				}
 
-				cols, e := extract_columns(field.Type)
+				cols, e := extract_columns(field.Type, m)
 				if e != nil {
 					return e
 				}
@@ -130,9 +130,9 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 	var query string
 	switch m.engine {
 	case SQLITE:
-		query = sqlite_createtable(tablename, strings.Join(columns, ""))
+		query = sqlite_createtable(tablename, strings.Join(columns, ","))
 	case SQLServer:
-		query, e = mssql_createtable(tablename, strings.Join(columns, ""), m.databasename, m)
+		query, e = mssql_createtable(tablename, strings.Join(columns, ","), m.databasename, m)
 		if e != nil {
 			return e
 		}

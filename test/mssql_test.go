@@ -8,8 +8,15 @@ import (
 	"github.com/chapgx/morm"
 )
 
+type mssql_email struct {
+	Id      int
+	Address string
+}
+
 type mssql_user struct {
 	FirstName string `morm:"firstname varchar(150) not null"`
+	Age       int    `morm:"age int"`
+	Email     mssql_email
 }
 
 func TestMSSQLCore(t *testing.T) {
@@ -22,7 +29,7 @@ func TestMSSQLCore(t *testing.T) {
 	})
 
 	t.Run("insert_data", func(t *testing.T) {
-		u := mssql_user{FirstName: "Richard"}
+		u := mssql_user{FirstName: "Richard", Age: 33, Email: mssql_email{Id: 1, Address: "email@email.com"}}
 		e := orm.Insert(&u)
 		AssertT(t, e == nil, e)
 	})

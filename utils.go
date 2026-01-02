@@ -416,7 +416,7 @@ func insert_adjecent(model any, seenfields map[string]bool) []string {
 	return queries
 }
 
-func extract_columns(model any) ([]string, error) {
+func extract_columns(model any, m *MORM) ([]string, error) {
 	t := pulltype(model)
 
 	var columns []string
@@ -428,7 +428,7 @@ func extract_columns(model any) ([]string, error) {
 		if mormtag.IsEmpty() {
 			fieldname := fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), strings.ToLower(field.Name))
 			fieldname = seen_before(fieldname, t.Name())
-			notag_column(field, fieldname, &columns)
+			notag_column(field, fieldname, &columns, m)
 			continue
 		}
 
@@ -440,7 +440,7 @@ func extract_columns(model any) ([]string, error) {
 				if field.Type.Kind() != reflect.Struct {
 					break
 				}
-				cols, e := extract_columns(field.Type)
+				cols, e := extract_columns(field.Type, m)
 				if e != nil {
 					return nil, e
 				}
@@ -495,12 +495,21 @@ func pullvalue(model any) reflect.Value {
 }
 
 // notag_column creates the sql syntax with the correct type based on the struct field type
-func notag_column(field reflect.StructField, fieldname string, columns *[]string) {
+func notag_column(field reflect.StructField, fieldname string, columns *[]string, m *MORM) {
 	switch field.Type.Kind() {
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
 		*columns = append(*columns, fmt.Sprintf("%s integer", fieldname))
 	case reflect.String:
-		*columns = append(*columns, fmt.Sprintf("%s text", fieldname))
+		var declaration string
+		switch m.engine {
+		case SQLITE:
+			declaration = fmt.Sprintf("%s text", fieldname)
+		case SQLServer:
+			declaration = fmt.Sprintf("%s varchar(max)", fieldname)
+		default:
+			panic(fmt.Sprintf("engine %s not supported for notag string field declaration", m.engine))
+		}
+		*columns = append(*columns, declaration)
 	case reflect.Bool:
 		*columns = append(*columns, fmt.Sprintf("%s integer check (%s IN(0,1))", fieldname, fieldname))
 	case reflect.Array:
@@ -511,21 +520,30 @@ func notag_column(field reflect.StructField, fieldname string, columns *[]string
 }
 
 func insert(model any, tblname string, m *MORM) error {
-	queries := insertquery(model, true, tblname, m)
-	Assert(len(queries) >= 1, "expected to have queries to process but found none")
+	var queries []string
+	insert_queries := insertquery(model, true, tblname, m)
+	Assert(len(insert_queries) >= 1, "expected to have queries to process but found none")
+
+	switch m.engine {
+	case SQLServer:
+		usedb, e := mssql_use_db(m)
+		Assert(e == nil, e)
+		queries = append(queries, usedb[:len(usedb)-1])
+		queries = append(queries, insert_queries...)
+	case SQLITE:
+		queries = insert_queries
+	}
 
 	if !m.connected {
 		m.connect()
 	}
 
-	var e error
+	query := strings.Join(queries, ";\n\n")
+	_queryHistory = append(_queryHistory, query)
 
-	for _, q := range queries {
-		_queryHistory = append(_queryHistory, queries...)
-		_, e = m.db.Exec(q)
-		if e != nil {
-			break
-		}
+	_, e := m.db.Exec(query)
+	if e != nil {
+		return e
 	}
 
 	return e
@@ -602,13 +620,6 @@ func insertquery(model any, independentTable bool, tablename string, m *MORM) []
 	qi := fmt.Sprintf("insert into %s(%s)\n", tablename, strings.Join(insertline, ", "))
 	qv := fmt.Sprintf("values (%s)", strings.Join(valuesline, ", "))
 	qi += qv
-
-	switch m.engine {
-	case SQLServer:
-		usedb, e := mssql_use_db(m)
-		Assert(e == nil, e)
-		qi = usedb + qi
-	}
 
 	executionchain = append(executionchain, qi)
 

@@ -44,7 +44,6 @@ func TestCore(t *testing.T) {
 
 		e = iorm.CreateTable(u, "")
 		AssertT(t, e == nil, e)
-		// PrintQueryHistory()
 	})
 
 	t.Run("save data", func(t *testing.T) {
@@ -57,6 +56,7 @@ func TestCore(t *testing.T) {
 
 		e = iorm.Insert(&u)
 		AssertT(t, e == nil, e)
+		morm.PrintQueryHistory()
 	})
 }
 
