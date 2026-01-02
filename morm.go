@@ -229,6 +229,13 @@ func (m *MORM) Update(model any, filters *Filter, fields ...string) Result {
 		Assert(e == nil, e)
 	}
 
+	switch m.engine {
+	case SQLServer:
+		usedb, e := mssql_use_db(m)
+		Assert(e == nil, e)
+		query = usedb + query
+	}
+
 	rslt, e := m.db.Exec(query)
 
 	if e != nil {

@@ -55,8 +55,8 @@ func mssql_server_info(m *MORM) (MSSQLInfo, error) {
 	return info, nil
 }
 
-// mssql_insert prepares pre statements if needed before the insert query
-func mssql_insert(m *MORM) (string, error) {
+// mssql_use_db sets the database context if any
+func mssql_use_db(m *MORM) (string, error) {
 	if m.engine != SQLServer {
 		return "", fmt.Errorf("expected SQLServer engine but got %s", m.engine)
 	}

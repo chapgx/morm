@@ -605,9 +605,9 @@ func insertquery(model any, independentTable bool, tablename string, m *MORM) []
 
 	switch m.engine {
 	case SQLServer:
-		prestatement, e := mssql_insert(m)
+		usedb, e := mssql_use_db(m)
 		Assert(e == nil, e)
-		qi = prestatement + qi
+		qi = usedb + qi
 	}
 
 	executionchain = append(executionchain, qi)

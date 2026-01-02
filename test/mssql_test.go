@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/chapgx/assert/v2"
@@ -24,5 +25,16 @@ func TestMSSQLCore(t *testing.T) {
 		u := mssql_user{FirstName: "Richard"}
 		e := orm.Insert(&u)
 		AssertT(t, e == nil, e)
+	})
+
+	t.Run("update_data", func(t *testing.T) {
+		u := mssql_user{FirstName: "Albert"}
+		filter := morm.NewFilter()
+		filter.And("firstname", morm.EQUAL, "Richard")
+
+		result := orm.Update(u, &filter, "FirstName")
+		AssertT(t, result.Error == nil, result.Error)
+
+		fmt.Printf("affected rows %d", result.RowsAffected)
 	})
 }
