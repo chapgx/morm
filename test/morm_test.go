@@ -31,18 +31,16 @@ type phone struct {
 }
 
 func TestCore(t *testing.T) {
-	e := morm.SetDefaultClient(morm.SQLITE, "./data/db.db")
+	sqlite, e := morm.New(morm.SQLITE, "./data/db.db")
 	AssertT(t, e == nil, e)
 
-	iorm, e := morm.New(morm.SQLITE, "./data/independent.db")
+	mssql, e := morm.NewWithName(morm.SQLServer, "sqlserver://sa:c1UhH%5E%25h%25lWPqXS2%233tE@127.0.0.1:1433?database=master", "movies")
 	AssertT(t, e == nil, e)
 
 	t.Run("create table", func(t *testing.T) {
 		var u user
-		e := morm.CreateTable(u, "")
-		AssertT(t, e == nil, e)
 
-		e = iorm.CreateTable(u, "")
+		e = sqlite.CreateTable(u, "")
 		AssertT(t, e == nil, e)
 	})
 
@@ -51,12 +49,21 @@ func TestCore(t *testing.T) {
 		p := phone{Id: 1, Primary: true, Number: "999999999"}
 		u.Phone = p
 
-		e := morm.Insert(&u)
-		AssertT(t, e == nil, e)
-
-		e = iorm.Insert(&u)
+		e = sqlite.Insert(&u)
 		AssertT(t, e == nil, e)
 		morm.PrintQueryHistory()
+	})
+
+	t.Run("read_data", func(t *testing.T) {
+		var u user
+		var msu mssql_user
+
+		e := sqlite.Read(&u, nil, "")
+		AssertT(t, e == nil, e)
+
+		e = mssql.Read(&msu, nil, "movies")
+		AssertT(t, e == nil, e)
+
 	})
 }
 

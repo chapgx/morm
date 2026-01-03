@@ -84,7 +84,7 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 			}
 
 			fieldname := strings.ToLower(field.Name)
-			seen[fieldname] = true
+			seen[fieldname] = struct{}{}
 			fieldname = safe_keyword(fieldname)
 
 			notag_column(field, fieldname, &columns, m)
@@ -110,7 +110,7 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 			}
 		}
 
-		seen[mormtag.fieldname] = true
+		seen[mormtag.fieldname] = struct{}{}
 		mormtag.SetFieldName(safe_keyword(mormtag.fieldname))
 
 		// TODO: for more complex types i will need to handle them differenly
@@ -154,7 +154,7 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 	}
 
 	if createdepth == 1 {
-		seen = make(map[string]bool)
+		seen = make(map[string]struct{})
 	}
 
 	createdepth--
@@ -320,4 +320,6 @@ func (m *MORM) Info() (DBInfo, error) {
 }
 
 // Read read data into the model
-func (m *MORM) Read(model any, filters *Filter) error { return read(model, filters, m) }
+func (m *MORM) Read(model any, filters *Filter, tablename string) error {
+	return read(model, filters, m, tablename)
+}

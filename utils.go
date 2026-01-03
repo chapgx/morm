@@ -3,11 +3,12 @@ package morm
 import (
 	"errors"
 	"fmt"
-	. "github.com/chapgx/assert/v2"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	. "github.com/chapgx/assert/v2"
 )
 
 // toint turns any integer type to int
@@ -241,10 +242,103 @@ func drop(tblname string, m *MORM) error {
 	return e
 }
 
-func read(model any, filters *Filter, m *MORM) error {
-	// TODO: next finish read funtion
-	_ = pulltype(model)
-	_ = pullvalue(model)
+func select_query(model reflect.Type, filters *Filter, m *MORM, tablename string, is_container bool) (string, error) {
+
+	var limited_selection string
+	if !is_container {
+		switch m.engine {
+		case SQLITE:
+			limited_selection = "LIMIT 1"
+		case SQLServer:
+			limited_selection = "top(1)"
+		}
+	}
+
+	var selected_fields []string
+	for i := 0; i < model.NumField(); i += 1 {
+		field := model.Field(i)
+		tag := gettag(field)
+
+		if tag.IsEmpty() {
+			if field.Type.Kind() == reflect.Struct {
+				continue
+			}
+
+			selected_fields = append(selected_fields, strings.ToLower(field.Name))
+			continue
+		}
+
+		if tag.IsDirective() {
+			switch tag.tag {
+			case IgnoreDirective:
+				continue
+			case FlattenDirective:
+				//TODO: we need to cash this so we can run it later and add it to the data itself. Or we ignore it and let the data addition add it
+				continue
+			}
+		}
+
+		tag.fieldname = safe_keyword(tag.fieldname)
+		selected_fields = append(selected_fields, tag.fieldname)
+
+	}
+
+	if tablename == "" {
+		tablename = model.Name()
+	}
+
+	var where_clause string
+	if filters != nil {
+		q, e := filters.WhereSQL()
+		if e != nil {
+			return "", e
+		}
+		where_clause = q
+	}
+
+	var query string
+	switch m.engine {
+	case SQLITE:
+		if where_clause != "" {
+			query = fmt.Sprintf("select %s\nfrom %s\n%s\n%s;", strings.Join(selected_fields, ", "), tablename, where_clause, limited_selection)
+			break
+		}
+		query = fmt.Sprintf("select %s\nfrom %s\n%s;", strings.Join(selected_fields, ", "), tablename, limited_selection)
+	case SQLServer:
+		if where_clause != "" {
+			query = fmt.Sprintf("select %s %s\nfrom %s\n%s;", limited_selection, strings.Join(selected_fields, ", "), tablename, where_clause)
+			break
+		}
+		query = fmt.Sprintf("select %s %s\nfrom %s;", limited_selection, strings.Join(selected_fields, ", "), tablename)
+	}
+
+	return query, nil
+}
+
+func read(model any, filters *Filter, m *MORM, tablename string) error {
+	is_container := false
+	t := pulltype(model)
+	// v := pullvalue(model)
+
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+
+	if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+		t = t.Elem()
+	}
+
+	query, e := select_query(t, filters, m, tablename, is_container)
+	if e != nil {
+		return e
+	}
+
+	//TODO: HIGH PRIORITY! finish logic
+
+	fmt.Println("from engine", m.engine)
+	fmt.Println(query)
+	fmt.Println()
+
 	return nil
 }
 
@@ -255,9 +349,9 @@ func seen_before(fieldname string, tablename string) string {
 	_, found := seen[fieldname]
 	if found {
 		fieldname = fmt.Sprintf("%s_%s", tablename, fieldname)
-		seen[fieldname] = true
+		seen[fieldname] = struct{}{}
 	} else {
-		seen[fieldname] = true
+		seen[fieldname] = struct{}{}
 	}
 	return fieldname
 }
@@ -624,7 +718,7 @@ func insertquery(model any, independentTable bool, tablename string, m *MORM) []
 	executionchain = append(executionchain, qi)
 
 	if insertdepth <= 1 {
-		seen = make(map[string]bool)
+		seen = make(map[string]struct{})
 	}
 
 	insertdepth--

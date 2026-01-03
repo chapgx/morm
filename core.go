@@ -35,7 +35,7 @@ const (
 
 var (
 	_morm *MORM
-	seen  = make(map[string]bool)
+	seen  = make(map[string]struct{})
 
 	// keeps track of nested tables creation execution
 	createdepth = 0
@@ -178,4 +178,6 @@ func Delete(model any, filters *Filter) Result {
 	return _morm.Delete(model, filters)
 }
 
-func Read(model any, filters *Filter) error { return _morm.Read(model, filters) }
+func Read(model any, filters *Filter, tablename string) error {
+	return _morm.Read(model, filters, tablename)
+}
