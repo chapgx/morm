@@ -75,6 +75,8 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 
 		// note: untagged are added as text with their field name
 		if mormtag.IsEmpty() {
+			//BUG: adjecent structs are not being created with a  link or foreign key
+
 			if field.Type.Kind() == reflect.Struct {
 				e := m.CreateTable(field.Type, "")
 				if e != nil {
@@ -125,19 +127,9 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 
 	}
 
-	//TODO: has to be Engine driven
-	var e error
-	var query string
-	switch m.engine {
-	case SQLITE:
-		query = sqlite_createtable(tablename, strings.Join(columns, ","))
-	case SQLServer:
-		query, e = mssql_createtable(tablename, strings.Join(columns, ","), m.databasename, m)
-		if e != nil {
-			return e
-		}
-	default:
-		return fmt.Errorf("this engine (%s) is not supported yet", m.engine)
+	query, e := create_table_query(EngineData{table: tablename, columns: strings.Join(columns, ","), dbname: m.databasename, m: m})
+	if e != nil {
+		return e
 	}
 
 	if !m.connected {

@@ -32,6 +32,7 @@ func (mt *MormTag) SetFieldName(fn string) {
 	mt.tag = strings.Join(mt.split, " ")
 }
 
+// gettag creates a [MormTag] from the struct field
 func gettag(field reflect.StructField) MormTag {
 	mormtag := field.Tag.Get("morm")
 	mt := MormTag{tag: mormtag}

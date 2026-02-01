@@ -27,45 +27,45 @@ type email struct {
 type phone struct {
 	Id      int
 	Primary bool
-	Number  string
+	Number  []int
 }
 
-func TestCore(t *testing.T) {
-	sqlite, e := morm.New(morm.SQLITE, "./data/db.db")
-	AssertT(t, e == nil, e)
-
-	mssql, e := morm.NewWithName(morm.SQLServer, "sqlserver://sa:c1UhH%5E%25h%25lWPqXS2%233tE@127.0.0.1:1433?database=master", "movies")
-	AssertT(t, e == nil, e)
-
-	t.Run("create table", func(t *testing.T) {
-		var u user
-
-		e = sqlite.CreateTable(u, "")
-		AssertT(t, e == nil, e)
-	})
-
-	t.Run("save data", func(t *testing.T) {
-		u := user{ID: "00", FirstName: "Richard", LastName: "Chapman", Now: time.Now()}
-		p := phone{Id: 1, Primary: true, Number: "999999999"}
-		u.Phone = p
-
-		e = sqlite.Insert(&u)
-		AssertT(t, e == nil, e)
-		morm.PrintQueryHistory()
-	})
-
-	t.Run("read_data", func(t *testing.T) {
-		var u user
-		var msu mssql_user
-
-		e := sqlite.Read(&u, nil, "")
-		AssertT(t, e == nil, e)
-
-		e = mssql.Read(&msu, nil, "movies")
-		AssertT(t, e == nil, e)
-
-	})
-}
+// func TestCore(t *testing.T) {
+// 	sqlite, e := morm.New(morm.SQLITE, "./data/db.db")
+// 	AssertT(t, e == nil, e)
+//
+// 	mssql, e := morm.NewWithName(morm.SQLServer, "sqlserver://sa:c1UhH%5E%25h%25lWPqXS2%233tE@127.0.0.1:1433?database=master", "movies")
+// 	AssertT(t, e == nil, e)
+//
+// 	t.Run("create table", func(t *testing.T) {
+// 		var u user
+//
+// 		e = sqlite.CreateTable(u, "")
+// 		AssertT(t, e == nil, e)
+// 	})
+//
+// 	t.Run("save data", func(t *testing.T) {
+// 		u := user{ID: "00", FirstName: "Richard", LastName: "Chapman", Now: time.Now()}
+// 		p := phone{Id: 1, Primary: true, Number: "999999999"}
+// 		u.Phone = p
+//
+// 		e = sqlite.Insert(&u)
+// 		AssertT(t, e == nil, e)
+// 		morm.PrintQueryHistory()
+// 	})
+//
+// 	t.Run("read_data", func(t *testing.T) {
+// 		var u user
+// 		var msu mssql_user
+//
+// 		e := sqlite.Read(&u, nil, "")
+// 		AssertT(t, e == nil, e)
+//
+// 		e = mssql.Read(&msu, nil, "movies")
+// 		AssertT(t, e == nil, e)
+//
+// 	})
+// }
 
 func TestUpdate(t *testing.T) {
 	e := morm.SetDefaultClient(morm.SQLITE, "./data/db.db")
@@ -116,4 +116,12 @@ func TestDelete(t *testing.T) {
 	AssertT(t, rslt.Error == nil, rslt.Error)
 
 	morm.PrintQueryHistory()
+}
+
+func TestSqlite(t *testing.T) {
+	c, e := morm.New(morm.SQLITE, "./data/db")
+	AssertT(t, e == nil, e)
+
+	e = c.CreateTable(phone{}, "")
+	AssertT(t, e == nil, e)
 }

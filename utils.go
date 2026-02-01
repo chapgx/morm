@@ -610,6 +610,8 @@ func notag_column(field reflect.StructField, fieldname string, columns *[]string
 		if field.Type.Elem().Kind() == reflect.Uint8 {
 			*columns = append(*columns, fmt.Sprintf("%s blob", fieldname))
 		}
+	case reflect.Slice:
+		fmt.Println("made it so slicees ignoring")
 	}
 }
 
