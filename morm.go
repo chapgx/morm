@@ -69,6 +69,7 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 	}
 
 	var columns []string
+	var follow_up_queries []string
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		mormtag := gettag(field)
@@ -89,7 +90,14 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 			seen[fieldname] = struct{}{}
 			fieldname = safe_keyword(fieldname)
 
-			notag_column(field, fieldname, &columns, m)
+			column := notag_column(field, fieldname, m, tablename)
+
+			if column.FieldType == COLUMN {
+				columns = append(columns, column.query)
+			} else if column.FieldType == ADJECENT_TABLE {
+				//TODO:(richard) test this
+				follow_up_queries = append(follow_up_queries, column.query)
+			}
 
 			continue
 		}
@@ -112,6 +120,7 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 			}
 		}
 
+		//note: the rest of the loop logic is for tag fields
 		seen[mormtag.fieldname] = struct{}{}
 		mormtag.SetFieldName(safe_keyword(mormtag.fieldname))
 
@@ -144,6 +153,8 @@ func (m *MORM) CreateTable(model any, tablename string) error {
 	if e != nil {
 		panic(e)
 	}
+
+	//TODO: 2026-02-05 handle follow_up_queries (do this before )
 
 	if createdepth == 1 {
 		seen = make(map[string]struct{})

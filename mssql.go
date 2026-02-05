@@ -1,5 +1,6 @@
 package morm
 
+//TODO:(richard) move all of this to sqlserver file
 import (
 	"fmt"
 )

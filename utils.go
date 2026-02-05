@@ -522,7 +522,13 @@ func extract_columns(model any, m *MORM) ([]string, error) {
 		if mormtag.IsEmpty() {
 			fieldname := fmt.Sprintf("%s_%s", strings.ToLower(t.Name()), strings.ToLower(field.Name))
 			fieldname = seen_before(fieldname, t.Name())
-			notag_column(field, fieldname, &columns, m)
+			//TODO: need to validate using t.Name() is the correct action here
+			column := notag_column(field, fieldname, m, t.Name())
+			if column.FieldType == COLUMN {
+				columns = append(columns, column.query)
+			}
+			//TODO: handle adjecent tables derive from container types
+
 			continue
 		}
 
@@ -586,33 +592,6 @@ func pullvalue(model any) reflect.Value {
 	}
 
 	return v
-}
-
-// notag_column creates the sql syntax with the correct type based on the struct field type
-func notag_column(field reflect.StructField, fieldname string, columns *[]string, m *MORM) {
-	switch field.Type.Kind() {
-	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
-		*columns = append(*columns, fmt.Sprintf("%s integer", fieldname))
-	case reflect.String:
-		var declaration string
-		switch m.engine {
-		case SQLITE:
-			declaration = fmt.Sprintf("%s text", fieldname)
-		case SQLServer:
-			declaration = fmt.Sprintf("%s varchar(max)", fieldname)
-		default:
-			panic(fmt.Sprintf("engine %s not supported for notag string field declaration", m.engine))
-		}
-		*columns = append(*columns, declaration)
-	case reflect.Bool:
-		*columns = append(*columns, fmt.Sprintf("%s integer check (%s IN(0,1))", fieldname, fieldname))
-	case reflect.Array:
-		if field.Type.Elem().Kind() == reflect.Uint8 {
-			*columns = append(*columns, fmt.Sprintf("%s blob", fieldname))
-		}
-	case reflect.Slice:
-		fmt.Println("made it so slicees ignoring")
-	}
 }
 
 func insert(model any, tblname string, m *MORM) error {

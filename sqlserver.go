@@ -1,6 +1,9 @@
 package morm
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 func mssql_createtable_query(table, columns, dbname string, m *MORM) (string, error) {
 
@@ -30,4 +33,28 @@ END
 
 	query = fmt.Sprintf(query, table, table, columns)
 	return query, nil
+}
+
+// mssql_notag_column composes a no tag (a field without the morm tag)
+func mssql_notag_column(field reflect.StructField, fieldname, tablename string) Field {
+	switch field.Type.Kind() {
+	case reflect.Int8:
+		return NewField(fmt.Sprintf("%s TINYINT", fieldname))
+	case reflect.Int16:
+		return NewField(fmt.Sprintf("%s SMALLINT", fieldname))
+	case reflect.Int32:
+		return NewField(fmt.Sprintf("%s INT", fieldname))
+	case reflect.Int64:
+		return NewField(fmt.Sprintf("%s BIGINT", fieldname))
+	case reflect.String:
+		return NewField(fmt.Sprintf("%s varchar(max)", fieldname))
+	case reflect.Bool:
+		return NewField(fmt.Sprintf("%s BIT", fieldname))
+	case reflect.Array, reflect.Slice, reflect.Map:
+		//TODO: handle arrays and slices by creatin an adjecent table by creating am adjecent table
+		return Field{}
+	default:
+		panic(fmt.Sprintf("this type is not supported %s", field.Type.Kind()))
+	}
+
 }
